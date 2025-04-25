@@ -1,0 +1,19 @@
+// src/componentes/Loader.scss
+@import '../styles/variables';
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    font-family: $font-family;
+    color: $primary-color;
+  }
+  
+  .loader-lottie {
+    width: 150px;
+    height: 150px;
+    margin-bottom: 10px;
+  }
+  

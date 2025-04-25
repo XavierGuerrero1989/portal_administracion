@@ -1,0 +1,19 @@
+// src/styles/_mixins.scss
+@mixin flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  @mixin respond($breakpoint) {
+    @if $breakpoint == tablet {
+      @media (max-width: 768px) {
+        @content;
+      }
+    }
+    @if $breakpoint == mobile {
+      @media (max-width: 480px) {
+        @content;
+      }
+    }
+  }
