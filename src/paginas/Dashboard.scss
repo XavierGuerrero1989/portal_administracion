@@ -1,0 +1,28 @@
+.dashboard {
+    h2 {
+      margin-bottom: 20px;
+    }
+  
+    .widgets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+  
+      .widget {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 20px;
+        font-weight: bold;
+        color: #343a40;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: background-color 0.3s ease, color 0.3s ease;
+  
+        &:hover {
+          background-color: #00bfa6;
+          color: #ffffff;
+          cursor: pointer;
+        }
+      }
+    }
+  }

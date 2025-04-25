@@ -6,9 +6,11 @@ import React, { useState } from "react";
 
 import Loader from "../componentes/Loader";
 import Logo from '../assets/imagenes/logo.png'
-import { auth } from "../firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -22,11 +24,32 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
-
+  
     try {
-      await signInWithEmailAndPassword(auth, email, clave);
-      navigate("/dashboard"); // cambiar si tu ruta principal es otra
+      const userCredential = await signInWithEmailAndPassword(auth, email, clave);
+      const user = userCredential.user;
+  
+      const userDocRef = doc(db, "usuarios", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+  
+      if (!userDocSnap.exists()) {
+        setError("El usuario no tiene rol asignado. Contacte al administrador.");
+        await signOut(auth);
+        return;
+      }
+  
+      const userData = userDocSnap.data();
+  
+      if (userData.role !== "medico") {
+        setError("Acceso denegado. Solo personal autorizado puede ingresar.");
+        await signOut(auth);
+        return;
+      }
+  
+      navigate("/dashboard"); // acceso autorizado
+  
     } catch (err) {
+      console.error("Error de login:", err);
       setError("Correo o contraseña incorrectos");
     } finally {
       setLoading(false);
