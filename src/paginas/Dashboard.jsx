@@ -3,12 +3,11 @@ import {
   collection,
   getDocs,
   doc,
-  getDoc,
-  query,
-  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import Loader from "../componentes/Loader"; // tu loader personalizado
+import Loader from "../componentes/Loader";
+import DistribucionEdadesChart from "../componentes/DistribucionEdadesChart";
+import PacientesActivosResumen from "../componentes/PacientesActivosResumen";
 import "./Dashboard.scss";
 
 const Dashboard = () => {
@@ -17,14 +16,16 @@ const Dashboard = () => {
   const [pacientesActivos, setPacientesActivos] = useState(0);
   const [tratamientosActivos, setTratamientosActivos] = useState(0);
   const [turnosHoy, setTurnosHoy] = useState(0);
+  const [selectedWidget, setSelectedWidget] = useState(null);
+  const [usuariosDocs, setUsuariosDocs] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const usuariosSnapshot = await getDocs(collection(db, "usuarios"));
-        const usuariosDocs = usuariosSnapshot.docs;
-
-        setTotalPacientes(usuariosDocs.length);
+        const docs = usuariosSnapshot.docs;
+        setUsuariosDocs(docs);
+        setTotalPacientes(docs.length);
 
         let activos = 0;
         let tratamientos = 0;
@@ -33,10 +34,9 @@ const Dashboard = () => {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
-        for (const userDoc of usuariosDocs) {
+        for (const userDoc of docs) {
           const userRef = doc(db, "usuarios", userDoc.id);
 
-          // Tratamientos
           const tratamientosSnapshot = await getDocs(
             collection(userRef, "tratamientos")
           );
@@ -48,7 +48,6 @@ const Dashboard = () => {
             }
           });
 
-          // Turnos de hoy
           const citasSnapshot = await getDocs(collection(userRef, "citas"));
           citasSnapshot.forEach((cita) => {
             const { fecha } = cita.data();
@@ -81,10 +80,29 @@ const Dashboard = () => {
     <div className="dashboard">
       <h2>Resumen general</h2>
       <div className="widgets">
-        <div className="widget">Total de pacientes: {totalPacientes}</div>
-        <div className="widget">Pacientes activos: {pacientesActivos}</div>
-        <div className="widget">Tratamientos activos: {tratamientosActivos}</div>
-        <div className="widget">Turnos hoy: {turnosHoy}</div>
+        <div className="widget" onClick={() => setSelectedWidget("pacientes")}>
+          Total de pacientes: {totalPacientes}
+        </div>
+        <div className="widget" onClick={() => setSelectedWidget("activos")}>
+          Pacientes activos: {pacientesActivos}
+        </div>
+        <div className="widget" onClick={() => setSelectedWidget("tratamientos")}>
+          Tratamientos activos: {tratamientosActivos}
+        </div>
+        <div className="widget" onClick={() => setSelectedWidget("turnos")}>
+          Turnos hoy: {turnosHoy}
+        </div>
+      </div>
+
+      <div className="widget-detail">
+          {selectedWidget === "pacientes" && (
+            <DistribucionEdadesChart usuariosDocs={usuariosDocs} />
+          )}
+          {selectedWidget === "activos" && (
+            <PacientesActivosResumen usuariosDocs={usuariosDocs} />
+          )}
+
+        {/* Aquí podrías ir agregando más contenido según el widget */}
       </div>
     </div>
   );
