@@ -1,0 +1,54 @@
+.tratamientos-mes {
+  margin-top: 40px;
+  width: 100%;
+
+  .titulo {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    color: #343a40;
+  }
+
+  .chart {
+    margin-bottom: 30px;
+  }
+
+  .mensaje-vacio {
+    color: #868e96;
+    font-style: italic;
+  }
+
+  .lista-tratamientos {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .card-tratamiento {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 15px 20px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: scale(1.02);
+      background-color: #f8f9fa;
+    }
+
+    .nombre {
+      font-weight: bold;
+      font-size: 1rem;
+      color: #212529;
+      margin-bottom: 5px;
+    }
+
+    .detalle {
+      font-size: 0.95rem;
+      color: #495057;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+  }
+}
