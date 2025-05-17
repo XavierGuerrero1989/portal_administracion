@@ -1,0 +1,72 @@
+.nuevo-paciente {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    color: #212529;
+  }
+
+  .formulario {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+
+    fieldset {
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #fdfdfd;
+
+      legend {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: #343a40;
+        padding: 0 10px;
+      }
+
+      .grupo {
+        margin-top: 15px;
+        display: flex;
+        flex-direction: column;
+
+        label {
+          margin-bottom: 5px;
+          font-weight: 500;
+          color: #495057;
+        }
+
+        input,
+        select {
+          padding: 8px 12px;
+          border: 1px solid #ced4da;
+          border-radius: 6px;
+          font-size: 0.95rem;
+
+          &:focus {
+            outline: none;
+            border-color: #00bfa6;
+          }
+        }
+      }
+    }
+
+    .btn-guardar {
+      background-color: #00bfa6;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      align-self: flex-end;
+
+      &:hover {
+        background-color: #009e8d;
+      }
+    }
+  }
+}

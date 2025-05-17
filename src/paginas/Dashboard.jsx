@@ -13,6 +13,7 @@ import PacientesActivosResumen from "../componentes/PacientesActivosResumen";
 import TratamientosDelMes from "../componentes/TratamientosDelMes";
 import TurnosHoy from "../componentes/TurnosHoy";
 import { db } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,7 @@ const Dashboard = () => {
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [usuariosDocs, setUsuariosDocs] = useState([]);
   const [tratamientosEsteMes, setTratamientosEsteMes] = useState(0);
+  const navigate = useNavigate();
 
 
   useEffect(() => {
@@ -103,6 +105,14 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <h2>Resumen general</h2>
+
+      <div className="acciones-dashboard">
+        <button className="boton-nuevo" onClick={() => navigate("/pacientes/nuevo")}>
+          <span className="icono">+</span> Nuevo paciente
+        </button>
+      </div>
+
+
       <div className="widgets">
         <div className="widget" onClick={() => setSelectedWidget("pacientes")}>
           Total de pacientes: {totalPacientes}

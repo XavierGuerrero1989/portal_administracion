@@ -25,4 +25,42 @@
         }
       }
     }
+
+    .acciones-dashboard {
+      display: flex;
+      justify-content: flex-start;
+      margin: 20px 0;
+
+  .boton-nuevo {
+    background: linear-gradient(to right, #00bfa6, #009e8d);
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+
+    .icono {
+      font-size: 1.2rem;
+      transform: scale(1);
+      transition: transform 0.3s ease;
+    }
+
+    &:hover {
+      background: linear-gradient(to right, #00bfa6, #007d6f);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+
+      .icono {
+        transform: scale(1.3);
+      }
+    }
+  }
+}
+
   }

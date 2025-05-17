@@ -1,74 +1,97 @@
 // src/App.jsx
-import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Header from "./componentes/Header";
-import Dashboard from "./paginas/Dashboard";
-import Pacientes from "./paginas/Pacientes";
-import Tratamientos from "./paginas/Tratamientos";
-import Estudios from "./paginas/Estudios";
-import Login from "./paginas/login";
 
 import "./App.scss";
 
+import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
+
+import Dashboard from "./paginas/Dashboard";
+import Estudios from "./paginas/Estudios";
+import Header from "./componentes/Header";
+import Login from "./paginas/login";
+import NuevoPaciente from "./paginas/NuevoPaciente";
+import Pacientes from "./paginas/Pacientes";
+import PrivateRoute from "./componentes/PrivateRoute";
+import React from "react";
+import Tratamientos from "./paginas/Tratamientos";
+
 const App = () => {
   return (
-    
-      <div className="app-container">
-        <Routes>
-          {/* LOGIN */}
-          <Route path="/" element={<Login />} />
+    <div className="app-container">
+      <Routes>
+        {/* LOGIN (pública) */}
+        <Route path="/" element={<Login />} />
 
-          {/* ZONA PRIVADA */}
-          <Route
-            path="/dashboard"
-            element={
+        {/* RUTAS PRIVADAS */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
               <>
                 <Header />
                 <div className="main-content">
                   <Dashboard />
                 </div>
               </>
-            }
-          />
-          <Route
-            path="/pacientes"
-            element={
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pacientes"
+          element={
+            <PrivateRoute>
               <>
                 <Header />
                 <div className="main-content">
                   <Pacientes />
                 </div>
               </>
-            }
-          />
-          <Route
-            path="/tratamientos"
-            element={
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pacientes/nuevo"
+          element={
+            <PrivateRoute>
+              <>
+                <Header />
+                <div className="main-content">
+                  <NuevoPaciente />
+                </div>
+              </>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/tratamientos"
+          element={
+            <PrivateRoute>
               <>
                 <Header />
                 <div className="main-content">
                   <Tratamientos />
                 </div>
               </>
-            }
-          />
-          <Route
-            path="/estudios"
-            element={
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/estudios"
+          element={
+            <PrivateRoute>
               <>
                 <Header />
                 <div className="main-content">
                   <Estudios />
                 </div>
               </>
-            }
-          />
+            </PrivateRoute>
+          }
+        />
 
-          {/* Cualquier ruta desconocida -> redirige a login */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </div>
-    
+        {/* RUTA DESCONOCIDA */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </div>
   );
 };
 
