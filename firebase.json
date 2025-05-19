@@ -3,6 +3,13 @@
     {
       "source": "functions",
       "codebase": "default",
+      "endpoints": {
+  "crearPaciente": {
+    "platform": "gcfv1",
+    "entryPoint": "crearPaciente",
+    "region": "us-central1"
+  }
+},
       "ignore": [
         "node_modules",
         ".git",
@@ -14,3 +21,4 @@
     }
   ]
 }
+

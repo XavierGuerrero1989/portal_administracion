@@ -2,7 +2,9 @@ import "./NuevoPaciente.scss";
 
 import React, { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
+import { app } from "../firebase"; // tu archivo de inicialización Firebase
 import { db } from "../firebase";
 
 const NuevoPaciente = () => {
@@ -48,20 +50,54 @@ const NuevoPaciente = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      await addDoc(collection(db, "usuarios"), {
-        ...formData,
-        fechaCreacion: new Date(),
+  const { email, ...datosPaciente } = formData;
+
+  try {
+    const functions = getFunctions(app);
+    const crearPaciente = httpsCallable(functions, "crearPaciente");
+
+    const resultado = await crearPaciente({
+      email,
+      datosPaciente,
+    });
+
+    if (resultado.data.success) {
+      alert("✅ Paciente creado correctamente. Se envió el correo de activación.");
+      // Opcional: limpiar formulario
+      setFormData({
+        nombre: "",
+        apellido: "",
+        email: "",
+        dni: "",
+        telefono: "",
+        fechaNacimiento: "",
+        altura: "",
+        peso: "",
+        grupoSanguineo: "",
+        fum: "",
+        ciclosRegulares: "",
+        embarazosPrevios: "",
+        cantidadEmbarazos: "",
+        hijos: "",
+        cantidadHijos: "",
+        pareja: "",
+        nombrePareja: "",
+        tieneAlergias: "",
+        detalleAlergias: "",
+        patologias: "",
+        medicacionHabitual: "",
       });
-
-      alert("Paciente creado correctamente.");
-    } catch (error) {
-      console.error("Error al guardar paciente:", error);
-      alert("Hubo un error al guardar.");
+    } else {
+      alert("❌ Ocurrió un error: " + resultado.data.error);
     }
-  };
+  } catch (error) {
+    console.error("Error llamando a la función crearPaciente:", error);
+    alert("❌ Error inesperado al crear el paciente.");
+  }
+};
+
 
   return (
     <div className="nuevo-paciente">
