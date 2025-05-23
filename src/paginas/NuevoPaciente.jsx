@@ -1,243 +1,90 @@
+// NuevoPaciente.jsx
+
 import "./NuevoPaciente.scss";
 
 import React, { useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-import { app } from "../firebase"; // tu archivo de inicialización Firebase
-import { db } from "../firebase";
+import FormularioInfoPaciente from "../componentes/FormularioInfoPaciente";
+import Loader from "../componentes/Loader";
+import { app } from "../firebase";
 
 const NuevoPaciente = () => {
   const [formData, setFormData] = useState({
-    // Identificación
     nombre: "",
     apellido: "",
     dni: "",
-    fechaNacimiento: "",
     email: "",
-    telefono: "",
-
-    // Datos clínicos
-    altura: "",
-    peso: "",
-    grupoSanguineo: "",
-    fum: "",
-    ciclosRegulares: "",
-
-    // Historia reproductiva
-    embarazosPrevios: "",
-    cantidadEmbarazos: "",
-    hijos: "",
-    cantidadHijos: "",
-    pareja: "",
-    nombrePareja: "",
-
-    // Alergias
-    tieneAlergias: "",
-    detalleAlergias: "",
-
-    // Patologías
-    patologias: "",
-    medicacionHabitual: "",
   });
+
+  const [formularioExtendido, setFormularioExtendido] = useState(false);
+  const [uidPaciente, setUidPaciente] = useState(null);
+   const [loading, setLoading] = useState(false); // 👈 Nuevo estado
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleCrearCuenta = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setLoading(true); // 👈 Mostrar loader
 
-  const { email, ...datosPaciente } = formData;
+    const cleanedFormData = {
+      ...formData,
+      email: formData.email.trim(),
+      dni: formData.dni.trim(),
+    };
 
-  try {
-    const functions = getFunctions(app);
-    const crearPaciente = httpsCallable(functions, "crearPaciente");
-
-    const resultado = await crearPaciente({
-      email,
-      datosPaciente,
-    });
-
-    if (resultado.data.success) {
-      alert("✅ Paciente creado correctamente. Se envió el correo de activación.");
-      // Opcional: limpiar formulario
-      setFormData({
-        nombre: "",
-        apellido: "",
-        email: "",
-        dni: "",
-        telefono: "",
-        fechaNacimiento: "",
-        altura: "",
-        peso: "",
-        grupoSanguineo: "",
-        fum: "",
-        ciclosRegulares: "",
-        embarazosPrevios: "",
-        cantidadEmbarazos: "",
-        hijos: "",
-        cantidadHijos: "",
-        pareja: "",
-        nombrePareja: "",
-        tieneAlergias: "",
-        detalleAlergias: "",
-        patologias: "",
-        medicacionHabitual: "",
-      });
-    } else {
-      alert("❌ Ocurrió un error: " + resultado.data.error);
+    if (!cleanedFormData.email || !cleanedFormData.dni) {
+      setErrorMsg("⚠️ Completá el email y el DNI antes de continuar.");
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    console.error("Error llamando a la función crearPaciente:", error);
-    alert("❌ Error inesperado al crear el paciente.");
-  }
-};
+
+    try {
+      const functions = getFunctions(app);
+      const crearPacienteBasico = httpsCallable(functions, "crearPacienteBasico");
+      const result = await crearPacienteBasico(cleanedFormData);
+
+      if (result.data.success) {
+        alert("✅ Cuenta creada exitosamente. Ahora completá el perfil.");
+        setUidPaciente(result.data.uid);
+        setFormularioExtendido(true);
+      } else {
+        setErrorMsg("❌ " + (result.data.error || "Error desconocido"));
+      }
+    } catch (error) {
+      console.error("Error llamando a crearPacienteBasico:", error);
+      setErrorMsg("❌ " + (error.message || "Error inesperado al crear la cuenta."));
+    } finally {
+      setLoading(false); // 👈 Ocultar loader
+    }
+  };
 
 
   return (
-    <div className="nuevo-paciente">
-      <h2>Nuevo paciente</h2>
-      <form onSubmit={handleSubmit} className="formulario">
+    <div className={`nuevo-paciente ${formularioExtendido ? "expandido" : ""}`}>
+      {!formularioExtendido ? (
+        <form onSubmit={handleCrearCuenta} className="formulario">
+          <h2>Crear nueva cuenta de paciente</h2>
+          <input type="text" name="nombre" placeholder="Nombre" value={formData.nombre} onChange={handleChange} required />
+          <input type="text" name="apellido" placeholder="Apellido" value={formData.apellido} onChange={handleChange} required />
+          <input type="text" name="dni" placeholder="DNI" value={formData.dni} onChange={handleChange} required />
+          <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
+          <button type="submit">CREAR</button>
 
-        {/* Identificación */}
-        <fieldset>
-          <legend>Datos personales</legend>
-          <div className="grupo">
-            <label>Nombre</label>
-            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required />
-          </div>
-          <div className="grupo">
-            <label>Apellido</label>
-            <input type="text" name="apellido" value={formData.apellido} onChange={handleChange} required />
-          </div>
-          <div className="grupo">
-            <label>DNI</label>
-            <input type="text" name="dni" value={formData.dni} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Fecha de nacimiento</label>
-            <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} required />
-          </div>
-          <div className="grupo">
-            <label>Email</label>
-            <input type="email" name="email" value={formData.email} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Teléfono</label>
-            <input type="tel" name="telefono" value={formData.telefono} onChange={handleChange} />
-          </div>
-        </fieldset>
-
-        {/* Datos clínicos */}
-        <fieldset>
-          <legend>Datos clínicos</legend>
-          <div className="grupo">
-            <label>Altura (cm)</label>
-            <input type="number" name="altura" value={formData.altura} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Peso (kg)</label>
-            <input type="number" name="peso" value={formData.peso} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Grupo sanguíneo</label>
-            <input type="text" name="grupoSanguineo" value={formData.grupoSanguineo} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>FUM (Fecha última menstruación)</label>
-            <input type="date" name="fum" value={formData.fum} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Ciclos menstruales regulares</label>
-            <select name="ciclosRegulares" value={formData.ciclosRegulares} onChange={handleChange}>
-              <option value="">Seleccionar</option>
-              <option value="sí">Sí</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-        </fieldset>
-
-        {/* Historia reproductiva */}
-        <fieldset>
-          <legend>Historia reproductiva</legend>
-          <div className="grupo">
-            <label>¿Tuvo embarazos previos?</label>
-            <select name="embarazosPrevios" value={formData.embarazosPrevios} onChange={handleChange}>
-              <option value="">Seleccionar</option>
-              <option value="sí">Sí</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          {formData.embarazosPrevios === "sí" && (
-            <div className="grupo">
-              <label>¿Cuántos?</label>
-              <input type="number" name="cantidadEmbarazos" value={formData.cantidadEmbarazos} onChange={handleChange} />
-            </div>
-          )}
-          <div className="grupo">
-            <label>¿Tiene hijos?</label>
-            <select name="hijos" value={formData.hijos} onChange={handleChange}>
-              <option value="">Seleccionar</option>
-              <option value="sí">Sí</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          {formData.hijos === "sí" && (
-            <div className="grupo">
-              <label>¿Cuántos?</label>
-              <input type="number" name="cantidadHijos" value={formData.cantidadHijos} onChange={handleChange} />
-            </div>
-          )}
-          <div className="grupo">
-            <label>¿Está en pareja?</label>
-            <select name="pareja" value={formData.pareja} onChange={handleChange}>
-              <option value="">Seleccionar</option>
-              <option value="sí">Sí</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          {formData.pareja === "sí" && (
-            <div className="grupo">
-              <label>Nombre de la pareja</label>
-              <input type="text" name="nombrePareja" value={formData.nombrePareja} onChange={handleChange} />
-            </div>
-          )}
-        </fieldset>
-
-        {/* Alergias y antecedentes */}
-        <fieldset>
-          <legend>Alergias y antecedentes</legend>
-          <div className="grupo">
-            <label>¿Tiene alergias?</label>
-            <select name="tieneAlergias" value={formData.tieneAlergias} onChange={handleChange}>
-              <option value="">Seleccionar</option>
-              <option value="sí">Sí</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-          {formData.tieneAlergias === "sí" && (
-            <div className="grupo">
-              <label>¿Cuáles?</label>
-              <input type="text" name="detalleAlergias" value={formData.detalleAlergias} onChange={handleChange} />
-            </div>
-          )}
-          <div className="grupo">
-            <label>Patologías previas relevantes</label>
-            <input type="text" name="patologias" value={formData.patologias} onChange={handleChange} />
-          </div>
-          <div className="grupo">
-            <label>Medicación habitual</label>
-            <input type="text" name="medicacionHabitual" value={formData.medicacionHabitual} onChange={handleChange} />
-          </div>
-        </fieldset>
-
-        <button type="submit" className="btn-guardar">Guardar paciente</button>
-      </form>
+          {loading && <Loader />} {/* 👈 Loader visible durante envío */}
+          {errorMsg && <p className="error-msg">{errorMsg}</p>} {/* 👈 Error detallado */}
+          
+        </form>
+      ) : (
+        <div className="formulario-extendido">
+          <FormularioInfoPaciente uidPaciente={uidPaciente} dniPaciente={formData.dni} />
+        </div>
+      )}
     </div>
   );
 };

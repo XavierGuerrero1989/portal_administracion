@@ -1,72 +1,76 @@
 .nuevo-paciente {
-  max-width: 800px;
+  max-width: 600px;
   margin: 40px auto;
-  padding: 20px;
+  padding: 32px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  font-family: 'Segoe UI', sans-serif;
 
   h2 {
+    text-align: center;
+    margin-bottom: 24px;
     font-size: 1.6rem;
-    margin-bottom: 20px;
-    color: #212529;
+    color: #333;
   }
 
   .formulario {
     display: flex;
     flex-direction: column;
-    gap: 25px;
+    gap: 16px;
 
-    fieldset {
-      border: 1px solid #dee2e6;
+    input {
+      padding: 12px 14px;
+      border: 1px solid #ccc;
       border-radius: 8px;
-      padding: 20px;
-      background-color: #fdfdfd;
+      font-size: 1rem;
+      transition: 0.2s border ease;
 
-      legend {
-        font-weight: bold;
-        font-size: 1.1rem;
-        color: #343a40;
-        padding: 0 10px;
-      }
-
-      .grupo {
-        margin-top: 15px;
-        display: flex;
-        flex-direction: column;
-
-        label {
-          margin-bottom: 5px;
-          font-weight: 500;
-          color: #495057;
-        }
-
-        input,
-        select {
-          padding: 8px 12px;
-          border: 1px solid #ced4da;
-          border-radius: 6px;
-          font-size: 0.95rem;
-
-          &:focus {
-            outline: none;
-            border-color: #00bfa6;
-          }
-        }
+      &:focus {
+        outline: none;
+        border-color: #00bfa6;
+        box-shadow: 0 0 0 3px rgba(0, 191, 166, 0.15);
       }
     }
 
-    .btn-guardar {
-      background-color: #00bfa6;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-weight: 600;
+    button {
+      margin-top: 8px;
+      padding: 12px;
       font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      background-color: #00bfa6;
+      border: none;
+      border-radius: 10px;
       cursor: pointer;
-      align-self: flex-end;
+      transition: background-color 0.25s ease;
 
       &:hover {
-        background-color: #009e8d;
+        background-color: #019d89;
       }
     }
   }
+
+  .formulario-extendido {
+    margin-top: 32px;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .error-msg {
+  color: #d32f2f;
+  font-weight: 500;
+  margin-top: 10px;
 }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
