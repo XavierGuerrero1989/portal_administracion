@@ -27,77 +27,78 @@ const Dashboard = () => {
 
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const usuariosSnapshot = await getDocs(collection(db, "usuarios"));
-        const docs = usuariosSnapshot.docs;
-        setUsuariosDocs(docs);
-        setTotalPacientes(docs.length);
-  
-        let activos = 0;
-        let tratamientos = 0;
-        let turnos = 0;
-        let tratamientosMes = 0;
-  
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const mesActual = hoy.getMonth();
-        const añoActual = hoy.getFullYear();
-  
-        for (const userDoc of docs) {
-          const userRef = doc(db, "usuarios", userDoc.id);
-  
-          const tratamientosSnapshot = await getDocs(
-            collection(userRef, "tratamientos")
-          );
-          tratamientosSnapshot.forEach((trat) => {
-            const data = trat.data();
-  
-            if (data.fechaInicio) {
-              const fechaInicio = data.fechaInicio?.seconds
-                ? new Date(data.fechaInicio.seconds * 1000)
-                : new Date(data.fechaInicio);
-  
-              if (
-                fechaInicio.getMonth() === mesActual &&
-                fechaInicio.getFullYear() === añoActual
-              ) {
-                tratamientosMes++;
-              }
-  
-              if (data.activo === true) {
-                activos++;
-                tratamientos++;
-              }
+  const fetchData = async () => {
+    try {
+      const usuariosSnapshot = await getDocs(collection(db, "usuarios"));
+      const docs = usuariosSnapshot.docs;
+
+      // Filtrar solo pacientes (excluir médicos)
+      const pacientesDocs = docs.filter((doc) => doc.data().role !== "medico");
+      setUsuariosDocs(pacientesDocs);
+      setTotalPacientes(pacientesDocs.length);
+
+      let activos = 0;
+      let tratamientosMes = 0;
+      let turnos = 0;
+
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const mesActual = hoy.getMonth();
+      const añoActual = hoy.getFullYear();
+
+      for (const userDoc of pacientesDocs) {
+        const userRef = doc(db, "usuarios", userDoc.id);
+
+        const tratamientosSnapshot = await getDocs(
+          collection(userRef, "tratamientos")
+        );
+        tratamientosSnapshot.forEach((trat) => {
+          const data = trat.data();
+
+          if (data.fechaInicio) {
+            const fechaInicio = data.fechaInicio?.seconds
+              ? new Date(data.fechaInicio.seconds * 1000)
+              : new Date(data.fechaInicio);
+
+            if (
+              fechaInicio.getMonth() === mesActual &&
+              fechaInicio.getFullYear() === añoActual
+            ) {
+              tratamientosMes++;
             }
-          });
-  
-          const citasSnapshot = await getDocs(collection(userRef, "citas"));
-          citasSnapshot.forEach((cita) => {
-            const { fecha } = cita.data();
-            if (fecha) {
-              const fechaCita = new Date(fecha.seconds * 1000);
-              fechaCita.setHours(0, 0, 0, 0);
-              if (fechaCita.getTime() === hoy.getTime()) {
-                turnos++;
-              }
+
+            if (data.activo === true) {
+              activos++;
             }
-          });
-        }
-  
-        setPacientesActivos(activos);
-        
-        setTurnosHoy(turnos);
-        setTratamientosEsteMes(tratamientosMes); // 👈 nuevo
-      } catch (error) {
-        console.error("Error cargando dashboard:", error);
-      } finally {
-        setLoading(false);
+          }
+        });
+
+        const citasSnapshot = await getDocs(collection(userRef, "citas"));
+        citasSnapshot.forEach((cita) => {
+          const { fecha } = cita.data();
+          if (fecha) {
+            const fechaCita = new Date(fecha.seconds * 1000);
+            fechaCita.setHours(0, 0, 0, 0);
+            if (fechaCita.getTime() === hoy.getTime()) {
+              turnos++;
+            }
+          }
+        });
       }
-    };
-  
-    fetchData();
-  }, []);
+
+      setPacientesActivos(activos);
+      setTurnosHoy(turnos);
+      setTratamientosEsteMes(tratamientosMes);
+    } catch (error) {
+      console.error("Error cargando dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
   
 
   if (loading) return <Loader />;

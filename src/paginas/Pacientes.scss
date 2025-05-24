@@ -1,0 +1,109 @@
+// Pacientes.scss
+
+.pacientes-container {
+  padding: 2rem;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    font-size: 1.8rem;
+    margin: 0;
+    color: white;
+  }
+
+  .acciones {
+    display: flex;
+    gap: 1rem;
+
+    input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    select {
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 0.95rem;
+    }
+
+    .nuevo {
+      padding: 0.5rem 1rem;
+      background-color: #00bfa6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+
+      &:hover {
+        background-color: #009e8c;
+      }
+    }
+  }
+}
+
+.tabla-pacientes {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+
+  th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+
+  th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+  }
+
+  .acciones {
+    display: flex;
+    gap: 0.4rem;
+
+    button {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+
+      &:hover {
+        color: #00bfa6;
+      }
+    }
+  }
+
+  .badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: white;
+
+    &.activo {
+      background-color: #00bfa6;
+    }
+
+    &.finalizado {
+      background-color: #666;
+    }
+
+    &.sin-tratamiento {
+      background-color: #ccc;
+      color: #333;
+    }
+  }
+}
