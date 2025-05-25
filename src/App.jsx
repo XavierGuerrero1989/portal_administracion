@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import "./App.scss";
 
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
@@ -10,6 +8,7 @@ import Header from "./componentes/Header";
 import Login from "./paginas/login";
 import NuevoPaciente from "./paginas/NuevoPaciente";
 import Pacientes from "./paginas/Pacientes";
+import PerfilPaciente from "./paginas/PerfilPaciente";
 import PrivateRoute from "./componentes/PrivateRoute";
 import React from "react";
 import Tratamientos from "./paginas/Tratamientos";
@@ -82,6 +81,21 @@ const App = () => {
                 <Header />
                 <div className="main-content">
                   <Estudios />
+                </div>
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        {/* CORREGIDA */}
+        <Route
+          path="/pacientes/:id/perfil"
+          element={
+            <PrivateRoute>
+              <>
+                <Header />
+                <div className="main-content">
+                  <PerfilPaciente />
                 </div>
               </>
             </PrivateRoute>

@@ -1,0 +1,244 @@
+.perfil-paciente {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+
+  h2 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    &.activo { background-color: #4caf50; color: white; }
+    &.inactivo { background-color: #ccc; color: #333; }
+    &.finalizado { background-color: #f44336; color: white; }
+  }
+
+  .barra-estado {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f0f4f8;
+    border: 1px solid #ccc;
+    padding: 1rem;
+    border-radius: 10px;
+
+    .estado-detalle {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+      font-size: 1rem;
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+    }
+
+    .estado-acciones {
+  display: flex;
+  gap: 1rem;
+
+  button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.2s ease;
+  }
+
+  button.editar {
+    background-color: #1976d2;
+
+    &:hover {
+      background-color: #125ea9;
+    }
+  }
+
+  button.iniciar {
+    background-color: #4caf50;
+
+    &:hover {
+      background-color: #388e3c;
+    }
+  }
+
+  button.finalizar {
+    background-color: #f44336;
+
+    &:hover {
+      background-color: #d32f2f;
+    }
+  }
+}
+
+  }
+
+  .contenido-inferior {
+    display: flex;
+    gap: 2rem;
+
+    .info-personal,
+    .info-tratamiento {
+      flex: 1;
+      background-color: #f9f9f9;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+
+      p {
+        margin-bottom: 0.5rem;
+        strong {
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .columna-evolucion {
+    margin-top: 2rem;
+    background: #fff;
+    border-top: 2px solid #ddd;
+    padding-top: 1.5rem;
+
+    h3 {
+      margin-bottom: 1rem;
+    }
+
+    .evoluciones-anteriores {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1.5rem;
+
+      .evolucion-item {
+        border-bottom: 1px solid #eee;
+        padding: 0.5rem 0;
+
+        .fecha {
+          font-size: 0.9rem;
+          font-weight: bold;
+        }
+
+        .texto {
+          margin-top: 0.3rem;
+        }
+      }
+    }
+
+    .nueva-evolucion {
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 0.8rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        resize: vertical;
+      }
+
+      button {
+        margin-top: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+
+        &:hover {
+          background-color: #43a047;
+        }
+      }
+    }
+  }
+
+  button.guardar {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.2s ease;
+    background-color: #4caf50;
+
+    &:hover {
+      background-color: #388e3c;
+    }
+  }
+
+  
+}
+
+
+.modal-confirmacion {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5); // fondo oscuro semitransparente
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  .modal-contenido {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+
+    p {
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    .modal-botones {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+
+      button {
+        flex: 1;
+        padding: 0.6rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      button:first-child {
+        background-color: #4caf50;
+        color: white;
+
+        &:hover {
+          background-color: #388e3c;
+        }
+      }
+
+      button:last-child {
+        background-color: #e0e0e0;
+
+        &:hover {
+          background-color: #bdbdbd;
+        }
+      }
+    }
+  }
+}
+
+
+

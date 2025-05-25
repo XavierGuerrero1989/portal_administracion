@@ -5,6 +5,7 @@ import "./Pacientes.scss";
 import React, { useEffect, useState } from "react";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 
+import { Link } from "react-router-dom";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
@@ -55,7 +56,7 @@ const Pacientes = () => {
 
   return (
     <div className="pacientes-container">
-      <div className="header">
+      <div className="header1">
         <h2>PACIENTES</h2>
         <div className="acciones">
           <input
@@ -105,7 +106,9 @@ const Pacientes = () => {
               <td>{formatearFecha(p.fechaCreacion)}</td>
               <td>{formatearFecha(p.ultimaActualizacion)}</td>
               <td className="acciones">
-                <button title="Ver perfil">🔍</button>
+                <Link to={`/pacientes/${p.id}/perfil`} title="Ver perfil">
+                  <button>🔍</button>
+                </Link>
                 <button title="Historial">🗂️</button>
                 <button title="Evolución">📈</button>
                 <button title="Editar">✏️</button>
