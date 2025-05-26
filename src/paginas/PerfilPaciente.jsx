@@ -188,6 +188,8 @@ const renderConfirmaciones = (medicamento) => {
 
           <div className="contenido-inferior">
             <div className="info-personal">
+              <p><strong>Resumen de datos Clínicos</strong></p>
+              <br/>
               {renderCampo("Teléfono", "telefono")}
               {renderCampo("Fecha de nacimiento", "fechaNacimiento")}
               {renderCampo("Grupo sanguíneo", "grupoSanguineo")}
@@ -217,17 +219,23 @@ const renderConfirmaciones = (medicamento) => {
             <div className="info-tratamiento">
               {tratamientoActivo ? (
                 <>
+                  <p><strong>Datos del tratamiento</strong></p>
+                  <br/>
+
                   <p><strong>Fecha de inicio:</strong> {formatFecha(tratamientoActivo.fechaInicio)}</p>
+                  <br/>
 
                   <div className="bloque-medicacion">
                     <p><strong>FSH:</strong> {tratamientoActivo.fsh?.medicamento} - {tratamientoActivo.fsh?.dosis} - {tratamientoActivo.fsh?.hora}</p>
                     {renderConfirmaciones(tratamientoActivo.fsh?.medicamento)}
                   </div>
+                  <br/>
 
                   <div className="bloque-medicacion">
                     <p><strong>HMG:</strong> {tratamientoActivo.hmg?.medicamento} - {tratamientoActivo.hmg?.dosis} - {tratamientoActivo.hmg?.hora}</p>
                     {renderConfirmaciones(tratamientoActivo.hmg?.medicamento)}
                   </div>
+                  <br/>
 
                   <div className="bloque-medicacion">
                     <p><strong>Vía Oral:</strong> {tratamientoActivo.viaOral?.medicamento} - {tratamientoActivo.viaOral?.dosis} - {tratamientoActivo.viaOral?.hora}</p>
