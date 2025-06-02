@@ -1,0 +1,102 @@
+.analisis-evolucion {
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .seccion {
+    margin-bottom: 2rem;
+
+    h3 {
+      font-size: 1.4rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #555;
+    }
+
+    .cards-estudios {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .titulo {
+          font-weight: 600;
+          color: #222;
+        }
+
+        .fecha {
+          font-size: 0.9rem;
+          color: #777;
+        }
+
+        .valores {
+          margin-top: 0.5rem;
+          font-size: 0.95rem;
+          color: #333;
+        }
+
+        .etiqueta {
+          font-size: 0.8rem;
+          padding: 0.2rem 0.5rem;
+          border-radius: 4px;
+          background-color: #e0e0e0;
+          color: #555;
+          align-self: flex-start;
+        }
+      }
+    }
+
+    .grafico {
+      margin-top: 1rem;
+      background-color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .estadisticas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1rem;
+
+      .stat {
+        flex: 1 1 200px;
+        background-color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .label {
+          font-size: 0.9rem;
+          color: #666;
+        }
+
+        .valor {
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: #222;
+        }
+      }
+    }
+  }
+}

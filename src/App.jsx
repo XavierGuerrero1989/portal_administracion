@@ -12,6 +12,7 @@ import PerfilPaciente from "./paginas/PerfilPaciente";
 import PrivateRoute from "./componentes/PrivateRoute";
 import React from "react";
 import Tratamientos from "./paginas/Tratamientos";
+import AnalisisYEvolucion from "./paginas/AnalisisYEvolucion";
 
 const App = () => {
   return (
@@ -96,6 +97,20 @@ const App = () => {
                 <Header />
                 <div className="main-content">
                   <PerfilPaciente />
+                </div>
+              </>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/pacientes/:id/evolucion"
+          element={
+            <PrivateRoute>
+              <>
+                <Header />
+                <div className="main-content">
+                  <AnalisisYEvolucion />
                 </div>
               </>
             </PrivateRoute>
