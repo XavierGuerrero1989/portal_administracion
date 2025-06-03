@@ -14,6 +14,7 @@ const Pacientes = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [pacienteAEliminar, setPacienteAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,12 +55,14 @@ const Pacientes = () => {
 
   const abrirModal = (paciente) => {
     setPacienteAEliminar(paciente);
+    setMensajeExito("");
     setModalVisible(true);
   };
 
   const cerrarModal = () => {
     setModalVisible(false);
     setPacienteAEliminar(null);
+    setMensajeExito("");
   };
 
   const eliminarPaciente = async () => {
@@ -75,7 +78,8 @@ const Pacientes = () => {
       if (!res.ok) throw new Error("Error al eliminar el paciente");
 
       setPacientes((prev) => prev.filter((p) => p.id !== pacienteAEliminar.id));
-      cerrarModal();
+      setMensajeExito("Paciente eliminado correctamente.");
+      setTimeout(() => cerrarModal(), 2000);
     } catch (err) {
       console.error(err);
       alert("Ocurrió un error al eliminar.");
@@ -136,7 +140,7 @@ const Pacientes = () => {
                 <Link to={`/pacientes/${p.id}/perfil`} title="Ver perfil">
                   <button>🔍</button>
                 </Link>
-                <button title="Historial">🗂️</button>
+                <button title="Historial">📂</button>
                 <Link to={`/pacientes/${p.id}/evolucion`} title="Evolucion">
                   <button>📈</button>
                 </Link>
@@ -148,16 +152,14 @@ const Pacientes = () => {
       </table>
 
       <ConfirmModal
-  isOpen={modalVisible}
-  onConfirm={eliminarPaciente}
-  onCancel={cerrarModal}
-  loading={eliminando}
-  titulo="¿Confirmás la eliminación?"
-  mensaje={`Esta acción eliminará al paciente ${pacienteAEliminar?.nombre} ${pacienteAEliminar?.apellido} y todos sus datos. Esta acción no puede deshacerse.`}
-  nombre={`${pacienteAEliminar?.nombre} ${pacienteAEliminar?.apellido}`}
-/>
-
-
+        isOpen={modalVisible}
+        onClose={cerrarModal}
+        onConfirm={eliminarPaciente}
+        loading={eliminando}
+        titulo={mensajeExito ? "Éxito" : "¿Estás seguro?"}
+        mensaje={mensajeExito ? "" : `Se eliminará al paciente ${pacienteAEliminar?.nombre} ${pacienteAEliminar?.apellido}`}
+        mensajeExito={mensajeExito}
+      />
     </div>
   );
 };
