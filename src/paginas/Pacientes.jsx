@@ -113,7 +113,7 @@ const Pacientes = () => {
                 <Link to={`/pacientes/${p.id}/evolucion`} title="Evolucion">
                   <button>📈</button>
                 </Link>
-                <button title="Editar">✏️</button>
+                
                 <button title="Eliminar">🗑️</button>
               </td>
             </tr>

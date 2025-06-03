@@ -14,16 +14,25 @@ import {
 } from "recharts";
 
 const AnalisisYEvolucion = () => {
-  const { id: pacienteId } = useParams(); // ← ahora lo tomamos directamente desde la URL
+  const { id: pacienteId } = useParams();
   const [estudios, setEstudios] = useState([]);
-  const [valoresGrafico, setValoresGrafico] = useState([]);
+  const [graficoAnalisis, setGraficoAnalisis] = useState([]);
+  const [graficoEcografias, setGraficoEcografias] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
   const parseFecha = (fecha) => {
     if (!fecha) return null;
     if (fecha.seconds) return new Date(fecha.seconds * 1000);
-    return new Date(fecha); // si es string
+    return new Date(fecha);
+  };
+
+  const formatearClave = (clave) =>
+    clave.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase());
+
+  const toNumeroValido = (valor) => {
+    const num = parseFloat(valor);
+    return isNaN(num) ? null : num;
   };
 
   useEffect(() => {
@@ -31,8 +40,6 @@ const AnalisisYEvolucion = () => {
       try {
         setCargando(true);
         setError(null);
-        console.log("📌 Iniciando carga de estudios para:", pacienteId);
-
         const estudiosRef = collection(
           db,
           "usuarios",
@@ -42,29 +49,28 @@ const AnalisisYEvolucion = () => {
           "estudios"
         );
         const snapshot = await getDocs(estudiosRef);
-        console.log("📥 Documentos encontrados:", snapshot.docs.length);
-
-        if (snapshot.docs.length === 0) {
-          console.warn("⚠️ No se encontraron estudios.");
-        }
-
-        const data = snapshot.docs.map((doc) => {
-          const d = { id: doc.id, ...doc.data() };
-          console.log("📄 Documento:", d);
-          return d;
-        });
-
+        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setEstudios(data);
 
-        const grafico = data.map((e) => ({
+        const analisis = data.filter((e) => e.tipoEstudio === "Análisis");
+        const ecografias = data.filter((e) => e.tipoEstudio === "Ecografía");
+
+        const grafico1 = analisis.map((e) => ({
           fecha: parseFecha(e.fecha)?.toLocaleDateString() || "Sin fecha",
-          estradiol: Number(e.estradiol) || null,
-          progesterona: Number(e.progesterona) || null,
-          lh: Number(e.lh) || null,
-          foliculos: Number(e.recuentoFolicular) || null,
+          estradiol: toNumeroValido(e.estradiol),
+          progesterona: toNumeroValido(e.progesterona),
+          lh: toNumeroValido(e.lh),
         }));
 
-        setValoresGrafico(grafico);
+        const grafico2 = ecografias.map((e) => ({
+          fecha: parseFecha(e.fecha)?.toLocaleDateString() || "Sin fecha",
+          total: toNumeroValido(e.foliculos),
+          derecho: toNumeroValido(e.ovarioDerecho),
+          izquierdo: toNumeroValido(e.ovarioIzquierdo),
+        }));
+
+        setGraficoAnalisis(grafico1);
+        setGraficoEcografias(grafico2);
       } catch (error) {
         console.error("❌ Error al cargar estudios:", error);
         setError("Error al cargar los estudios. Ver consola.");
@@ -76,14 +82,15 @@ const AnalisisYEvolucion = () => {
     if (pacienteId) {
       cargarEstudios();
     } else {
-      console.error("❌ pacienteId no definido");
       setError("ID de paciente no definido.");
       setCargando(false);
     }
   }, [pacienteId]);
 
   const calcularPromedio = (campo) => {
-    const valores = estudios.map((e) => Number(e[campo])).filter((v) => !isNaN(v));
+    const valores = estudios
+      .map((e) => parseFloat(e[campo]))
+      .filter((v) => !isNaN(v));
     if (valores.length === 0) return "-";
     const total = valores.reduce((acc, v) => acc + v, 0);
     return (total / valores.length).toFixed(1);
@@ -95,12 +102,60 @@ const AnalisisYEvolucion = () => {
     return fechas.sort((a, b) => b - a)[0].toLocaleDateString();
   };
 
-  const calcularFrecuencia = () => {
-    const fechas = estudios.map((e) => parseFecha(e.fecha)).filter(Boolean).sort((a, b) => a - b);
-    if (fechas.length < 2) return "-";
-    const intervalos = fechas.slice(1).map((f, i) => (f - fechas[i]) / (1000 * 60 * 60 * 24));
-    const promedio = intervalos.reduce((acc, v) => acc + v, 0) / intervalos.length;
-    return promedio.toFixed(1) + " días";
+const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
+  const diasUnicos = Array.from(
+    new Set(
+      estudios
+        .filter((e) => e.tipoEstudio === tipoEstudioFiltro)
+        .map((e) => {
+          const f = parseFecha(e.fecha);
+          if (!f) return null;
+          const dia = f.getDate().toString().padStart(2, "0");
+          const mes = (f.getMonth() + 1).toString().padStart(2, "0");
+          const año = f.getFullYear();
+          return `${año}-${mes}-${dia}`;
+        })
+        .filter(Boolean)
+    )
+  )
+    .map((str) => new Date(str))
+    .sort((a, b) => a - b);
+
+  if (diasUnicos.length < 2) return "-";
+
+  const intervalos = diasUnicos.slice(1).map((fecha, i) => {
+    const anterior = diasUnicos[i];
+    const diferencia = (fecha - anterior) / (1000 * 60 * 60 * 24);
+    return diferencia;
+  });
+
+  const promedio = intervalos.reduce((a, b) => a + b, 0) / intervalos.length;
+  return promedio.toFixed(1) + " días";
+};
+
+
+
+
+
+  const camposExcluidos = [
+    "id",
+    "tipoEstudio",
+    "fecha",
+    "archivoURL",
+    "uid",
+    "userId",
+    "usuarioId",
+    "pacienteId",
+    "creadoPor",
+  ];
+
+  const mostrarCreador = (creadoPor) => {
+    if (!creadoPor) return null;
+    return (
+      <p className="autor-carga">
+        Cargado por: {creadoPor === "medico" ? "el médico" : "la paciente"}
+      </p>
+    );
   };
 
   return (
@@ -109,7 +164,6 @@ const AnalisisYEvolucion = () => {
 
       {cargando && <p>Cargando estudios...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
-
       {!cargando && estudios.length === 0 && !error && (
         <p>No hay estudios cargados para este paciente.</p>
       )}
@@ -120,11 +174,12 @@ const AnalisisYEvolucion = () => {
             <strong>{est.tipoEstudio || "Sin tipo"}</strong>
             <p>Fecha: {parseFecha(est.fecha)?.toLocaleDateString() || "Sin fecha"}</p>
             <ul>
-              {est.estradiol && <li>Estradiol: {est.estradiol}</li>}
-              {est.progesterona && <li>Progesterona: {est.progesterona}</li>}
-              {est.lh && <li>LH: {est.lh}</li>}
-              {est.recuentoFolicular && <li>Recuento Folicular: {est.recuentoFolicular}</li>}
+              {Object.entries(est).map(([clave, valor]) => {
+                if (camposExcluidos.includes(clave)) return null;
+                return <li key={clave}>{`${formatearClave(clave)}: ${valor}`}</li>;
+              })}
             </ul>
+            {mostrarCreador(est.creadoPor)}
             {est.archivoURL && (
               <a href={est.archivoURL} target="_blank" rel="noopener noreferrer">
                 Ver archivo
@@ -134,33 +189,51 @@ const AnalisisYEvolucion = () => {
         ))}
       </div>
 
-      {estudios.length > 0 && (
+      {graficoAnalisis.length > 0 && (
         <>
-          <h3>Evolución de valores</h3>
+          <h3>Evolución de valores hormonales</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={valoresGrafico} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+            <LineChart data={graficoAnalisis} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
               <XAxis dataKey="fecha" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="estradiol" stroke="#8884d8" name="Estradiol" />
-              <Line type="monotone" dataKey="progesterona" stroke="#82ca9d" name="Progesterona" />
-              <Line type="monotone" dataKey="lh" stroke="#ffc658" name="LH" />
-              <Line type="monotone" dataKey="foliculos" stroke="#ff7300" name="Recuento Folicular" />
+              <Line type="monotone" dataKey="estradiol" stroke="#8884d8" name="Estradiol" connectNulls />
+              <Line type="monotone" dataKey="progesterona" stroke="#82ca9d" name="Progesterona" connectNulls />
+              <Line type="monotone" dataKey="lh" stroke="#ffc658" name="LH" connectNulls />
             </LineChart>
           </ResponsiveContainer>
-
-          <h3>Estadísticas generales</h3>
-          <div className="stats">
-            <div>Promedio Estradiol: {calcularPromedio("estradiol")}</div>
-            <div>Promedio Progesterona: {calcularPromedio("progesterona")}</div>
-            <div>Promedio LH: {calcularPromedio("lh")}</div>
-            <div>Promedio Recuento Folicular: {calcularPromedio("recuentoFolicular")}</div>
-            <div>Último estudio: {calcularUltimaFecha()}</div>
-            <div>Frecuencia de análisis: {calcularFrecuencia()}</div>
-          </div>
         </>
       )}
+
+      {graficoEcografias.length > 0 && (
+        <>
+          <h3>Evolución ecográfica</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={graficoEcografias} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <XAxis dataKey="fecha" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="total" stroke="#ff7300" name="Recuento total" connectNulls />
+              <Line type="monotone" dataKey="derecho" stroke="#82ca9d" name="Ovario derecho" connectNulls />
+              <Line type="monotone" dataKey="izquierdo" stroke="#8884d8" name="Ovario izquierdo" connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </>
+      )}
+
+      <h3>Estadísticas generales</h3>
+      <div className="stats">
+        <div>Promedio Estradiol: {calcularPromedio("estradiol")}</div>
+        <div>Promedio Progesterona: {calcularPromedio("progesterona")}</div>
+        <div>Promedio LH: {calcularPromedio("lh")}</div>
+        <div>Promedio Recuento Folicular: {calcularPromedio("foliculos")}</div>
+        <div>Último estudio: {calcularUltimaFecha()}</div>
+        <div>Frecuencia de análisis clínicos: {calcularFrecuenciaPorTipo("Análisis")}</div>
+<div>Frecuencia de ecografías: {calcularFrecuenciaPorTipo("Ecografía")}</div>
+
+      </div>
     </div>
   );
 };
