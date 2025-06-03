@@ -2,6 +2,8 @@
 const { https } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
+const functions = require("firebase-functions");
+
 
 admin.initializeApp();
 
@@ -87,3 +89,62 @@ exports.crearPacienteBasico = https.onCall(
     }
   }
 );
+
+exports.eliminarPacienteConTodo = functions.https.onRequest(async (req, res) => {
+  const admin = require("firebase-admin");
+  const db = admin.firestore();
+
+  if (req.method !== "DELETE") {
+    return res.status(405).send("Método no permitido");
+  }
+
+  try {
+    const id = req.query.id;
+
+    if (!id) {
+      return res.status(400).json({ error: "ID de paciente no proporcionado" });
+    }
+
+    const userRef = db.collection("usuarios").doc(id);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "Paciente no encontrado" });
+    }
+
+    // 🔥 1. Eliminar subcolecciones dentro de tratamientos
+    const tratamientosSnap = await userRef.collection("tratamientos").get();
+
+    for (const doc of tratamientosSnap.docs) {
+      const tratamientoRef = userRef.collection("tratamientos").doc(doc.id);
+      const subcollections = await tratamientoRef.listCollections();
+      for (const subcol of subcollections) {
+        const subSnap = await subcol.get();
+        for (const subDoc of subSnap.docs) {
+          await subDoc.ref.delete();
+        }
+      }
+      await tratamientoRef.delete();
+    }
+
+    // 🔥 2. Eliminar otras subcolecciones del paciente
+    const otrasSubcolecciones = await userRef.listCollections();
+    for (const subcol of otrasSubcolecciones) {
+      if (subcol.id !== "tratamientos") {
+        const subSnap = await subcol.get();
+        for (const subDoc of subSnap.docs) {
+          await subDoc.ref.delete();
+        }
+      }
+    }
+
+    // 🔥 3. Eliminar documento principal
+    await userRef.delete();
+
+    res.status(200).json({ mensaje: "Paciente eliminado correctamente con todos sus datos." });
+  } catch (error) {
+    console.error("❌ Error al eliminar paciente:", error);
+    res.status(500).json({ error: "Error interno al eliminar el paciente." });
+  }
+});
+

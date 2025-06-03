@@ -1,57 +1,87 @@
 // Pacientes.jsx
-
 import "./Pacientes.scss";
 
 import React, { useEffect, useState } from "react";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
-
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { db } from "../firebase";
-import { useNavigate } from "react-router-dom";
+import ConfirmModal from "../componentes/ConfirmModal";
 
 const Pacientes = () => {
   const [pacientes, setPacientes] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [pacienteAEliminar, setPacienteAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-  const cargarPacientes = async () => {
-    const querySnapshot = await getDocs(collection(db, "usuarios"));
-    const data = await Promise.all(
-      querySnapshot.docs.map(async (docSnap) => {
-        const paciente = { id: docSnap.id, ...docSnap.data() };
+    const cargarPacientes = async () => {
+      const querySnapshot = await getDocs(collection(db, "usuarios"));
+      const data = await Promise.all(
+        querySnapshot.docs.map(async (docSnap) => {
+          const paciente = { id: docSnap.id, ...docSnap.data() };
 
-        let estado = "sin-tratamiento";
-        const tratamientoRef = doc(db, "usuarios", paciente.id, "tratamientos", "activo");
-        const tratamientoSnap = await getDoc(tratamientoRef);
-        if (tratamientoSnap.exists()) {
-          const data = tratamientoSnap.data();
-          estado = data.activo === true ? "activo" : "finalizado";
-        }
+          let estado = "sin-tratamiento";
+          const tratamientoRef = doc(db, "usuarios", paciente.id, "tratamientos", "activo");
+          const tratamientoSnap = await getDoc(tratamientoRef);
+          if (tratamientoSnap.exists()) {
+            const data = tratamientoSnap.data();
+            estado = data.activo === true ? "activo" : "finalizado";
+          }
 
-        return { ...paciente, estado };
-      })
-    );
+          return { ...paciente, estado };
+        })
+      );
 
-    // 🧼 Filtramos los que no sean médicos
-    const soloPacientes = data.filter((p) => p.role !== "medico");
-    setPacientes(soloPacientes);
-  };
+      const soloPacientes = data.filter((p) => p.role !== "medico");
+      setPacientes(soloPacientes);
+    };
 
-  cargarPacientes();
-}, []);
-
+    cargarPacientes();
+  }, []);
 
   const filtrarPacientes = () => {
     return pacientes.filter((p) => {
       const coincideBusqueda = `${p.nombre} ${p.apellido} ${p.dni} ${p.email}`
         .toLowerCase()
         .includes(busqueda.toLowerCase());
-      const coincideEstado =
-        filtroEstado === "todos" || p.estado === filtroEstado;
+      const coincideEstado = filtroEstado === "todos" || p.estado === filtroEstado;
       return coincideBusqueda && coincideEstado;
     });
+  };
+
+  const abrirModal = (paciente) => {
+    setPacienteAEliminar(paciente);
+    setModalVisible(true);
+  };
+
+  const cerrarModal = () => {
+    setModalVisible(false);
+    setPacienteAEliminar(null);
+  };
+
+  const eliminarPaciente = async () => {
+    try {
+      setEliminando(true);
+      const res = await fetch(
+        `https://us-central1-appfertilidad.cloudfunctions.net/eliminarPacienteConTodo?id=${pacienteAEliminar.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!res.ok) throw new Error("Error al eliminar el paciente");
+
+      setPacientes((prev) => prev.filter((p) => p.id !== pacienteAEliminar.id));
+      cerrarModal();
+    } catch (err) {
+      console.error(err);
+      alert("Ocurrió un error al eliminar.");
+    } finally {
+      setEliminando(false);
+    }
   };
 
   return (
@@ -65,10 +95,7 @@ const Pacientes = () => {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
-          <select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-          >
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
             <option value="todos">Todos los estados</option>
             <option value="activo">Con tratamiento activo</option>
             <option value="finalizado">Finalizado</option>
@@ -113,13 +140,24 @@ const Pacientes = () => {
                 <Link to={`/pacientes/${p.id}/evolucion`} title="Evolucion">
                   <button>📈</button>
                 </Link>
-                
-                <button title="Eliminar">🗑️</button>
+                <button title="Eliminar" onClick={() => abrirModal(p)}>🗑️</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <ConfirmModal
+  isOpen={modalVisible}
+  onConfirm={eliminarPaciente}
+  onCancel={cerrarModal}
+  loading={eliminando}
+  titulo="¿Confirmás la eliminación?"
+  mensaje={`Esta acción eliminará al paciente ${pacienteAEliminar?.nombre} ${pacienteAEliminar?.apellido} y todos sus datos. Esta acción no puede deshacerse.`}
+  nombre={`${pacienteAEliminar?.nombre} ${pacienteAEliminar?.apellido}`}
+/>
+
+
     </div>
   );
 };

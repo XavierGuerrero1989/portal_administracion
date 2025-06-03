@@ -1,0 +1,70 @@
+// componentes/ConfirmModal.scss
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-align: center;
+
+  h3 {
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+  }
+
+  p {
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    color: #444;
+  }
+
+  .botones {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+
+    button {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .cancelar {
+      background-color: #ccc;
+      border: none;
+      color: #333;
+
+      &:hover {
+        background-color: #b3b3b3;
+      }
+    }
+
+    .confirmar {
+      background-color: #00bfa6;
+      color: white;
+      border: none;
+
+      &:hover {
+        background-color: #009e8c;
+      }
+    }
+  }
+}
