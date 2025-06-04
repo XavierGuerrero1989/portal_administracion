@@ -1,0 +1,146 @@
+.historial-paciente {
+  padding: 2rem;
+
+  .cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    h2 {
+      font-size: 1.8rem;
+      color: #333;
+    }
+
+    .btn-pdf {
+      background-color: #2196f3;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #1976d2;
+      }
+
+      svg {
+        vertical-align: middle;
+      }
+    }
+  }
+
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+
+    button {
+      background-color: #f1f1f1;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #e0e0e0;
+      }
+    }
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .evento {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background-color: #ffffff;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-left: 6px solid #cfcfcf;
+
+    &.inicio {
+      border-left-color: #4caf50;
+    }
+
+    &.medicacion {
+      border-left-color: #2196f3;
+    }
+
+    &.estudio {
+      border-left-color: #673ab7;
+    }
+
+    &.cita {
+      border-left-color: #ff9800;
+    }
+
+    &.modificacion {
+      border-left-color: #009688;
+    }
+
+    &.finalizacion {
+      border-left-color: #9c27b0;
+    }
+
+    &.alerta {
+      border-left-color: #f44336;
+    }
+
+    .icono {
+      flex-shrink: 0;
+      margin-top: 0.3rem;
+
+      svg {
+        width: 24px;
+        height: 24px;
+        color: #555;
+      }
+    }
+
+    .contenido {
+      .fecha {
+        font-size: 0.85rem;
+        color: #777;
+        margin-bottom: 0.2rem;
+      }
+
+      h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #222;
+      }
+
+      p {
+        margin: 0.3rem 0;
+        color: #444;
+      }
+
+      .extra {
+        font-size: 0.9rem;
+        margin-top: 0.3rem;
+        background-color: #f8f8f8;
+        padding: 0.5rem;
+        border-radius: 6px;
+        color: #333;
+      }
+
+      .autor {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 0.4rem;
+      }
+    }
+  }
+}

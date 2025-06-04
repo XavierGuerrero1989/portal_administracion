@@ -13,6 +13,8 @@
     "@sendgrid/mail": "^8.1.5",
     "cors": "^2.8.5",
     "firebase": "^11.6.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.5.25",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.510.0",
     "react": "^19.0.0",
