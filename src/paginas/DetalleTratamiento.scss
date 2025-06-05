@@ -1,0 +1,149 @@
+.detalle-tratamiento {
+  padding: 2rem;
+
+  .volver {
+    background: none;
+    border: none;
+    color: #2196f3;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 0.5rem;
+    color: #333;
+  }
+
+  p {
+    margin: 0.3rem 0;
+    color: #555;
+  }
+
+  h3 {
+    margin-top: 2rem;
+    font-size: 1.3rem;
+    color: #444;
+  }
+
+  table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #f1f1f1;
+      font-weight: 600;
+      color: #444;
+    }
+
+    td {
+      color: #333;
+    }
+
+    .btn-extender {
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #125ea5;
+      }
+    }
+  }
+
+  .aplicar {
+    margin-top: 1.5rem;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #388e3c;
+    }
+
+    &:disabled {
+      background-color: #a5d6a7;
+      cursor: not-allowed;
+    }
+  }
+
+  .modal-extension {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+
+    .modal-contenido {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+      h4 {
+        margin-bottom: 1rem;
+        color: #333;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1rem;
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: #555;
+
+        input {
+          margin-top: 0.3rem;
+          padding: 0.4rem;
+          border-radius: 6px;
+          border: 1px solid #ccc;
+          font-size: 1rem;
+        }
+      }
+
+      .aplicar {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}

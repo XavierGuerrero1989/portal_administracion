@@ -14,6 +14,7 @@ import React from "react";
 import Tratamientos from "./paginas/Tratamientos";
 import AnalisisYEvolucion from "./paginas/AnalisisYEvolucion";
 import HistorialPaciente from "./paginas/HistorialPaciente";
+import DetalleTratamiento from "./paginas/DetalleTratamiento";
 
 const App = () => {
   return (
@@ -131,6 +132,21 @@ const App = () => {
             </PrivateRoute>
           }
         />
+
+        <Route
+  path="/tratamientos/:idUsuario/:idTratamiento"
+  element={
+    <PrivateRoute>
+      <>
+        <Header />
+        <div className="main-content">
+          <DetalleTratamiento />
+        </div>
+      </>
+    </PrivateRoute>
+  }
+/>
+
 
         {/* RUTA DESCONOCIDA */}
         <Route path="*" element={<Navigate to="/" />} />

@@ -1,0 +1,87 @@
+.tratamientos {
+  padding: 2rem;
+
+  h2 {
+    font-size: 1.8rem;
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+
+  .barra-busqueda {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background-color: #f8f8f8;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+
+    input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      outline: none;
+      color: #333;
+    }
+
+    svg {
+      color: #888;
+    }
+  }
+
+  .tabla-tratamientos {
+    overflow-x: auto;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+      th, td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+      }
+
+      th {
+        background-color: #f1f1f1;
+        font-weight: 600;
+        color: #444;
+      }
+
+      td {
+        color: #333;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .ver-detalle {
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+          background-color: #1976d2;
+        }
+
+        svg {
+          stroke-width: 2;
+        }
+      }
+    }
+  }
+}
