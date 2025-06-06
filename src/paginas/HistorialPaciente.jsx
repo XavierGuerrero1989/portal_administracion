@@ -7,7 +7,6 @@ import { FileText, Calendar, Bell, CheckCircle, XCircle, Edit2, Download } from 
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-
 const HistorialPaciente = () => {
   const { id } = useParams();
   const [eventos, setEventos] = useState([]);
@@ -61,7 +60,6 @@ const HistorialPaciente = () => {
           // Estudios dentro de tratamientos/activo/estudios
           const estudiosSnap = await getDocs(collection(db, "usuarios", id, "tratamientos", "activo", "estudios"));
           mapearDocs(estudiosSnap.docs, "estudio", (data) => {
-            console.log("📦 Estudio recibido:", data);
             return {
               tipo: "estudio",
               titulo: `Estudio: ${data.tipoEstudio || "Sin tipo"}`,
@@ -76,6 +74,20 @@ const HistorialPaciente = () => {
         }
       } catch (error) {
         console.warn("No se pudieron cargar los tratamientos o estudios:", error);
+      }
+
+      // Historial personalizado
+      try {
+        const historialSnap = await getDocs(collection(db, "usuarios", id, "historial"));
+        mapearDocs(historialSnap.docs, "modificacion", (data) => ({
+          tipo: data.tipo || "modificacion",
+          titulo: data.titulo || "Modificación",
+          descripcion: data.descripcion || "",
+          fecha: data.fecha,
+          autor: data.autor || "Sistema",
+        }));
+      } catch (error) {
+        console.warn("No se pudo cargar la colección historial:", error);
       }
 
       const eventosOrdenados = historial

@@ -34,67 +34,78 @@
     color: #444;
   }
 
-  table {
-    width: 100%;
-    margin-top: 1rem;
-    border-collapse: collapse;
-    background-color: #fff;
+  .acordeon {
+    border: 1px solid #ddd;
     border-radius: 8px;
-    overflow: hidden;
+    margin-top: 1rem;
+    background-color: #fafafa;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
-    th, td {
+    .acordeon-header {
       padding: 0.75rem 1rem;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-    }
-
-    th {
-      background-color: #f1f1f1;
-      font-weight: 600;
-      color: #444;
-    }
-
-    td {
-      color: #333;
-    }
-
-    .btn-extender {
-      background-color: #1976d2;
-      color: white;
-      border: none;
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
       cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      background-color: #f1f1f1;
+      border-radius: 8px;
 
-      &:hover {
-        background-color: #125ea5;
+      .info {
+        flex-grow: 1;
+        color: #333;
+      }
+
+      .acciones {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
       }
     }
-  }
 
-  .aplicar {
-    margin-top: 1.5rem;
-    background-color: #4caf50;
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    font-size: 1rem;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+    .acordeon-body {
+      padding: 1rem;
+      border-top: 1px solid #ddd;
+      background-color: #fff;
 
-    &:hover {
-      background-color: #388e3c;
-    }
+      p {
+        margin: 0.4rem 0;
+        color: #555;
+      }
 
-    &:disabled {
-      background-color: #a5d6a7;
-      cursor: not-allowed;
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0;
+
+        li {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.3rem 0;
+          color: #333;
+
+          .estado-texto {
+            font-size: 0.85rem;
+            color: #777;
+          }
+        }
+      }
+
+      .btn-extender {
+        margin-top: 0.5rem;
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        cursor: pointer;
+
+        &:hover {
+          background-color: #125ea5;
+        }
+      }
     }
   }
 
@@ -117,6 +128,7 @@
       width: 100%;
       max-width: 400px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      position: relative;
 
       h4 {
         margin-bottom: 1rem;
@@ -142,7 +154,49 @@
 
       .aplicar {
         width: 100%;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
         justify-content: center;
+        gap: 0.4rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+
+        &:hover:not(:disabled) {
+          background-color: #388e3c;
+        }
+
+        &:disabled {
+          background-color: #a5d6a7;
+          cursor: not-allowed;
+        }
+      }
+
+      .mensaje-exito {
+        color: #4caf50;
+        text-align: center;
+        font-weight: bold;
+        margin-top: 1rem;
+      }
+
+      .cerrar {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #888;
+
+        &:hover {
+          color: #000;
+        }
       }
     }
   }
