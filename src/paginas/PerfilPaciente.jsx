@@ -2,7 +2,7 @@
 
 import "./PerfilPaciente.scss";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, button } from "react";
 import {
   addDoc,
   collection,
@@ -219,6 +219,18 @@ const renderConfirmaciones = (medicamento) => {
             <div className="info-tratamiento">
               {tratamientoActivo ? (
                 <>
+
+                  <div className="botones-estudios">
+                    <button className="btn-secundario" onClick={() => scrollToSeccion("inicio-tratamiento")}>
+                      Ver tratamiento
+                    </button>
+
+                    <button className="btn-primario" onClick={() => setModalVisible(true)}>
+                      Agregar estudio
+                    </button>
+                  </div>
+
+
                   <p><strong>Datos del tratamiento</strong></p>
                   <br/>
 

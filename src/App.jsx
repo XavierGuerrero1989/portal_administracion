@@ -3,7 +3,6 @@ import "./App.scss";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 
 import Dashboard from "./paginas/Dashboard";
-import Estudios from "./paginas/Estudios";
 import Header from "./componentes/Header";
 import Login from "./paginas/login";
 import NuevoPaciente from "./paginas/NuevoPaciente";
@@ -15,6 +14,7 @@ import Tratamientos from "./paginas/Tratamientos";
 import AnalisisYEvolucion from "./paginas/AnalisisYEvolucion";
 import HistorialPaciente from "./paginas/HistorialPaciente";
 import DetalleTratamiento from "./paginas/DetalleTratamiento";
+import EstadisticasIA from "./paginas/EstadisticasIA";
 
 const App = () => {
   return (
@@ -77,13 +77,13 @@ const App = () => {
           }
         />
         <Route
-          path="/estudios"
+          path="/estadisticasIA"
           element={
             <PrivateRoute>
               <>
                 <Header />
                 <div className="main-content">
-                  <Estudios />
+                  <EstadisticasIA />
                 </div>
               </>
             </PrivateRoute>
