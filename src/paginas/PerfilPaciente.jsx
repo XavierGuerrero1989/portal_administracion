@@ -161,103 +161,58 @@ const renderConfirmaciones = (medicamento) => {
 
 
   return (
-    <div className="perfil-paciente">
-      {paciente?.error ? (
-        <p>No se encontró el paciente.</p>
-      ) : paciente ? (
-        <>
-          <h2>{paciente.nombre} {paciente.apellido}</h2>
+  <div className="perfil-paciente">
+    {paciente?.error ? (
+      <p>No se encontró el paciente.</p>
+    ) : paciente ? (
+      <>
+        <h2>{paciente.nombre} {paciente.apellido}</h2>
 
-          <div className="barra-estado">
-            <div className="estado-detalle">
-              <span className={`badge ${tratamientoActivo ? 'activo' : 'inactivo'}`}>
-                {tratamientoActivo ? 'TRATAMIENTO ACTIVO' : 'SIN TRATAMIENTO'}
-              </span>
-              <span><strong>FUM:</strong> {tratamientoActivo?.fum ? formatFecha(tratamientoActivo.fum) : paciente.fum ? formatFecha(paciente.fum) : "-"}</span>
-              <span><strong>Tratamiento:</strong> {tratamientoActivo?.tipo || "-"}</span>
-              <span><strong>Email:</strong> {paciente.email}</span>
-            </div>
-            <div className="estado-acciones">
-              <button className="editar" onClick={() => setModoEdicion(!modoEdicion)}>
-                {modoEdicion ? "Cancelar" : "Editar paciente"}
-              </button>
-              <button className="iniciar">Iniciar tratamiento</button>
-              <button className="finalizar">Finalizar tratamiento</button>
-            </div>
+        <div className="barra-estado">
+          <div className="estado-detalle">
+            <span className={`badge ${tratamientoActivo ? 'activo' : 'inactivo'}`}>
+              {tratamientoActivo ? 'TRATAMIENTO ACTIVO' : 'SIN TRATAMIENTO'}
+            </span>
+            <span><strong>FUM:</strong> {tratamientoActivo?.fum ? formatFecha(tratamientoActivo.fum) : paciente.fum ? formatFecha(paciente.fum) : "-"}</span>
+            <span><strong>Tratamiento:</strong> {tratamientoActivo?.tipo || "-"}</span>
+            <span><strong>Email:</strong> {paciente.email}</span>
           </div>
+          <div className="estado-acciones">
+            <button className="editar" onClick={() => setModoEdicion(!modoEdicion)}>
+              {modoEdicion ? "Cancelar" : "Editar paciente"}
+            </button>
+            <button className="iniciar">Iniciar tratamiento</button>
+            <button className="finalizar">Finalizar tratamiento</button>
+          </div>
+        </div>
 
-          <div className="contenido-inferior">
-            <div className="info-personal">
-              <p><strong>Resumen de datos Clínicos</strong></p>
-              <br/>
-              {renderCampo("Teléfono", "telefono")}
-              {renderCampo("Fecha de nacimiento", "fechaNacimiento")}
-              {renderCampo("Grupo sanguíneo", "grupoSanguineo")}
-              {renderCampo("Altura", "altura")}
-              {renderCampo("Peso", "peso")}
-              {renderCampo("Estado civil / pareja", "pareja")}
-              {renderCampo("Nombre de pareja", "nombrePareja")}
-              {renderCampo("Ciclos regulares", "ciclosRegulares")}
-              {renderCampo("Duración ciclo", "duracionCiclo")}
-              {renderCampo("Embarazos previos", "embarazosPrevios")}
-              {renderCampo("Cantidad de embarazos", "cantidadEmbarazos")}
-              {renderCampo("Hijos", "hijos")}
-              {renderCampo("Cantidad de hijos", "cantidadHijos")}
-              {renderCampo("Patologías", "patologias")}
-              {renderCampo("Alergias", "tieneAlergias")}
-              {renderCampo("Detalle alergias", "detalleAlergias")}
-              {renderCampo("Procedimientos", "procedimientos")}
-              {renderCampo("Detalle procedimientos", "detalleProcedimientos")}
+        <div className="layout-principal">
+          <div className="info-personal">
+            <h3>Resumen de datos Clínicos</h3>
+            {renderCampo("Teléfono", "telefono")}
+            {renderCampo("Fecha de nacimiento", "fechaNacimiento")}
+            {renderCampo("Grupo sanguíneo", "grupoSanguineo")}
+            {renderCampo("Altura", "altura")}
+            {renderCampo("Peso", "peso")}
+            {renderCampo("Estado civil / pareja", "pareja")}
+            {renderCampo("Nombre de pareja", "nombrePareja")}
+            {renderCampo("Ciclos regulares", "ciclosRegulares")}
+            {renderCampo("Duración ciclo", "duracionCiclo")}
+            {renderCampo("Embarazos previos", "embarazosPrevios")}
+            {renderCampo("Cantidad de embarazos", "cantidadEmbarazos")}
+            {renderCampo("Hijos", "hijos")}
+            {renderCampo("Cantidad de hijos", "cantidadHijos")}
+            {renderCampo("Patologías", "patologias")}
+            {renderCampo("Alergias", "tieneAlergias")}
+            {renderCampo("Detalle alergias", "detalleAlergias")}
+            {renderCampo("Procedimientos", "procedimientos")}
+            {renderCampo("Detalle procedimientos", "detalleProcedimientos")}
 
-              {modoEdicion && (
-                <button className="guardar" onClick={() => setMostrarModal(true)}>
-                  Guardar cambios
-                </button>
-              )}
-            </div>
-
-            <div className="info-tratamiento">
-              {tratamientoActivo ? (
-                <>
-
-                  <div className="botones-estudios">
-                    <button className="btn-secundario" onClick={() => scrollToSeccion("inicio-tratamiento")}>
-                      Ver tratamiento
-                    </button>
-
-                    <button className="btn-primario" onClick={() => setModalVisible(true)}>
-                      Agregar estudio
-                    </button>
-                  </div>
-
-
-                  <p><strong>Datos del tratamiento</strong></p>
-                  <br/>
-
-                  <p><strong>Fecha de inicio:</strong> {formatFecha(tratamientoActivo.fechaInicio)}</p>
-                  <br/>
-
-                  <div className="bloque-medicacion">
-                    <p><strong>FSH:</strong> {tratamientoActivo.fsh?.medicamento} - {tratamientoActivo.fsh?.dosis} - {tratamientoActivo.fsh?.hora}</p>
-                    {renderConfirmaciones(tratamientoActivo.fsh?.medicamento)}
-                  </div>
-                  <br/>
-
-                  <div className="bloque-medicacion">
-                    <p><strong>HMG:</strong> {tratamientoActivo.hmg?.medicamento} - {tratamientoActivo.hmg?.dosis} - {tratamientoActivo.hmg?.hora}</p>
-                    {renderConfirmaciones(tratamientoActivo.hmg?.medicamento)}
-                  </div>
-                  <br/>
-
-                  <div className="bloque-medicacion">
-                    <p><strong>Vía Oral:</strong> {tratamientoActivo.viaOral?.medicamento} - {tratamientoActivo.viaOral?.dosis} - {tratamientoActivo.viaOral?.hora}</p>
-                    {renderConfirmaciones(tratamientoActivo.viaOral?.medicamento)}
-                  </div>
-                </>
-              ) : (
-                <p>No hay tratamiento activo.</p>
-              )}
-            </div>
+            {modoEdicion && (
+              <button className="guardar" onClick={() => setMostrarModal(true)}>
+                Guardar cambios
+              </button>
+            )}
           </div>
 
           <div className="columna-evolucion">
@@ -283,23 +238,56 @@ const renderConfirmaciones = (medicamento) => {
               <button onClick={guardarEvolucion}>Guardar evolución</button>
             </div>
           </div>
+        </div>
 
-          {mostrarModal && (
-            <div className="modal-confirmacion">
-              <div className="modal-contenido">
-                <p>¿Desea guardar los cambios realizados?</p>
-                <div className="modal-botones">
-                  <button onClick={guardarCambios}>Confirmar</button>
-                  <button onClick={() => setMostrarModal(false)}>Cancelar</button>
-                </div>
+        <div className="seccion-tratamientos">
+          <h3>Datos del tratamiento</h3>
+          <br/>
+          {tratamientoActivo ? (
+            <>
+              <p><strong>Fecha de inicio:</strong> {formatFecha(tratamientoActivo.fechaInicio)}</p>
+              <br/>
+
+              <div className="bloque-medicacion">
+                <p><strong>FSH:</strong> {tratamientoActivo.fsh?.medicamento} - {tratamientoActivo.fsh?.dosis} - {tratamientoActivo.fsh?.hora}</p>
+                {renderConfirmaciones(tratamientoActivo.fsh?.medicamento)}
+                <br/>
+              </div>
+
+              <div className="bloque-medicacion">
+                <p><strong>HMG:</strong> {tratamientoActivo.hmg?.medicamento} - {tratamientoActivo.hmg?.dosis} - {tratamientoActivo.hmg?.hora}</p>
+                {renderConfirmaciones(tratamientoActivo.hmg?.medicamento)}
+                <br/>
+              </div>
+
+              <div className="bloque-medicacion">
+                <p><strong>Vía Oral:</strong> {tratamientoActivo.viaOral?.medicamento} - {tratamientoActivo.viaOral?.dosis} - {tratamientoActivo.viaOral?.hora}</p>
+                {renderConfirmaciones(tratamientoActivo.viaOral?.medicamento)}
+                <br/>
+              </div>
+            </>
+          ) : (
+            <p>No hay tratamiento activo.</p>
+          )}
+        </div>
+
+        {mostrarModal && (
+          <div className="modal-confirmacion">
+            <div className="modal-contenido">
+              <p>¿Desea guardar los cambios realizados?</p>
+              <div className="modal-botones">
+                <button onClick={guardarCambios}>Confirmar</button>
+                <button onClick={() => setMostrarModal(false)}>Cancelar</button>
               </div>
             </div>
-          )}
-        </>
-      ) : (
-        <p>Cargando datos del paciente...</p>
-      )}
-    </div>
+          </div>
+        )}
+      </>
+    ) : (
+      <p>Cargando datos del paciente...</p>
+    )}
+  </div>
+
   );
 };
 
