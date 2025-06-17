@@ -124,16 +124,20 @@ const eliminarEstudio = async (id) => {
 
 
   const abrirModal = (clave) => {
-    const [tipo, index] = clave.split("-");
-    const datos = tratamiento[tipo]?.[index];
-    if (!datos) return;
-    setMedSeleccionado(clave);
-    setDias("");
-    setDosis(datos.dosis || "");
-    setHora(datos.hora || "");
-    setModalVisible(true);
-    setMensajeExito("");
-  };
+  const [tipo, index] = clave.split("-");
+  const fuente = tratamiento[tipo];
+  const arreglo = Array.isArray(fuente) ? fuente : [fuente];
+  const datos = arreglo[index];
+
+  if (!datos) return;
+  setMedSeleccionado(clave);
+  setDias("");
+  setDosis(datos.dosis || "");
+  setHora(datos.hora || "");
+  setModalVisible(true);
+  setMensajeExito("");
+};
+
 
   const aplicarExtension = async () => {
     if (!medSeleccionado || !dias || !dosis || !hora) return;
@@ -233,6 +237,85 @@ const eliminarEstudio = async (id) => {
 
   cargarEstudios();
 };
+
+const confirmarNuevoMedicamento = async () => {
+  if (!nuevoTipo || !nuevoNombre || !nuevoDosis || !nuevoHora || !nuevoDias) return;
+
+  setGuardandoNuevo(true);
+  setMensajeNuevoExito("");
+
+  const nuevaKey = nuevoTipo;
+  const nuevaData = {
+    medicamento: nuevoNombre,
+    dosis: nuevoDosis,
+    hora: nuevoHora,
+    duracion: parseInt(nuevoDias),
+    fum: new Date().toISOString(),
+  };
+
+  const tratamientoRef = doc(db, "usuarios", idUsuario, "tratamientos", idTratamiento);
+  const tipoActual = tratamiento[nuevoTipo];
+
+  if (!tipoActual) {
+    await updateDoc(tratamientoRef, {
+      [nuevoTipo]: [nuevaData],
+    });
+  } else if (Array.isArray(tipoActual)) {
+    await updateDoc(tratamientoRef, {
+      [nuevoTipo]: arrayUnion(nuevaData),
+    });
+  } else {
+    await updateDoc(tratamientoRef, {
+      [nuevoTipo]: [tipoActual, nuevaData],
+    });
+  }
+
+  const fechaInicio = parseFecha(tratamiento.fechaInicio);
+  const nuevasNotis = [];
+
+  for (let i = 0; i < parseInt(nuevoDias); i++) {
+    const base = new Date(fechaInicio);
+    base.setDate(base.getDate() + i);
+    const [h, m] = nuevoHora.split(":").map(Number);
+    base.setHours(h, m, 0, 0);
+
+    const fechaP = new Date(base);
+    const fechaS = new Date(base.getTime() - 10 * 60000);
+    const fechaT = new Date(base.getTime() - 30 * 60000);
+
+    nuevasNotis.push(
+      { fecha: Timestamp.fromDate(fechaP), hora: nuevoHora, medicamento: nuevoNombre, dosis: nuevoDosis, tipo: "primaria", confirmada: false, creada: serverTimestamp() },
+      { fecha: Timestamp.fromDate(fechaS), hora: nuevoHora, medicamento: nuevoNombre, dosis: nuevoDosis, tipo: "secundaria", confirmada: false, creada: serverTimestamp() },
+      { fecha: Timestamp.fromDate(fechaT), hora: nuevoHora, medicamento: nuevoNombre, dosis: nuevoDosis, tipo: "terciaria", confirmada: false, creada: serverTimestamp() }
+    );
+  }
+
+  const notisRef = collection(db, "usuarios", idUsuario, "notificaciones");
+  await Promise.all(nuevasNotis.map((n) => addDoc(notisRef, n)));
+
+  await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+    tipo: "agregado",
+    titulo: "Nuevo medicamento agregado",
+    descripcion: `${nuevoTipo.toUpperCase()} - ${nuevoNombre} – Dosis: ${nuevoDosis} – Hora: ${nuevoHora} – Días: ${nuevoDias}`,
+    fecha: serverTimestamp(),
+    autor: "Profesional",
+  });
+
+  await cargarDatos();
+  setGuardandoNuevo(false);
+  setMensajeNuevoExito("✔ Medicamento agregado correctamente");
+
+  setTimeout(() => {
+    setModalAgregarVisible(false);
+    setNuevoTipo("");
+    setNuevoNombre("");
+    setNuevoDosis("");
+    setNuevoHora("");
+    setNuevoDias("");
+    setMensajeNuevoExito("");
+  }, 1500);
+};
+
 
 
   return (
