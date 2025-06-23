@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 functions/.env
+
+/scripts/

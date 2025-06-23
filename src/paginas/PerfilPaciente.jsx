@@ -153,13 +153,42 @@ const PerfilPaciente = () => {
               <h3>Tratamiento</h3>
               {tratamientoActivo ? (
                 <>
-                  <p><strong>FUM:</strong> {formatFecha(tratamientoActivo.fum)}</p>
+                  <p><strong>FUM:</strong> {tratamientoActivo.fum ? new Date(tratamientoActivo.fum.toDate ? tratamientoActivo.fum.toDate() : tratamientoActivo.fum).toLocaleDateString() : "-"}</p>
                   <p><strong>Tipo:</strong> {tratamientoActivo.tipo}</p>
-                  <p><strong>Inicio:</strong> {formatFecha(tratamientoActivo.fechaInicio)}</p>
+                  <p><strong>Inicio:</strong> {tratamientoActivo.fechaInicio ? new Date(tratamientoActivo.fechaInicio.toDate ? tratamientoActivo.fechaInicio.toDate() : tratamientoActivo.fechaInicio).toLocaleDateString() : "-"}</p>
+
+                  <div className="bloque-medicamentos">
+                    {["fsh", "hmg", "antagonista", "viaOral"].map((tipo) => {
+                      const grupo = tratamientoActivo[tipo];
+                      if (!grupo) return null;
+                      const lista = Array.isArray(grupo) ? grupo : [grupo];
+                      return (
+                        <div key={tipo}>
+                          <h4>{tipo.toUpperCase()}</h4>
+                          {lista.map((med, idx) => (
+                            <div key={idx} className="card-medicamento">
+                              <p><strong>Nombre:</strong> {med.medicamento}</p>
+                              <p><strong>Dosis:</strong> {med.dosis}</p>
+                              <p><strong>Hora:</strong> {med.hora}</p>
+                              <p><strong>Días:</strong> {typeof med.duracion === "number" ? med.duracion : "-"}</p>
+
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div style={{ marginTop: "20px" }}>
+                    <button onClick={() => window.location.href = `/detalle-tratamiento/${id}/activo`}>
+                      Ver detalle completo
+                    </button>
+                  </div>
                 </>
               ) : <p>No hay tratamiento activo</p>}
             </div>
           )}
+
 
           {seccionAbierta === "evolucion" && (
             <div className="seccion">
