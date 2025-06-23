@@ -26,3 +26,4 @@ dist-ssr
 functions/.env
 
 /scripts/
+serviceAccountKey.json
