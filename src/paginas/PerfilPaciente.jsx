@@ -1,6 +1,6 @@
 import "./PerfilPaciente.scss";
 import React, { useEffect, useState } from "react";
-import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams } from "react-router-dom";
 
@@ -14,6 +14,7 @@ const PerfilPaciente = () => {
   const [evoluciones, setEvoluciones] = useState([]);
   const [nuevaEvolucion, setNuevaEvolucion] = useState("");
   const [seccionAbierta, setSeccionAbierta] = useState(null);
+  const [estudios, setEstudios] = useState([]);
 
   const ordenCampos = [
   "nombre",
@@ -71,6 +72,10 @@ const PerfilPaciente = () => {
       }
     };
 
+    
+
+
+
     const q = query(collection(db, `usuarios/${id}/evoluciones`), orderBy("fecha", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
       const evolList = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -100,6 +105,16 @@ const PerfilPaciente = () => {
     setNuevaEvolucion("");
   };
 
+  const eliminarEstudio = async (idEstudio) => {
+  try {
+    await deleteDoc(doc(db, `usuarios/${id}/tratamientos/activo/estudios/${idEstudio}`));
+    setEstudios((prev) => prev.filter(est => est.id !== idEstudio));
+  } catch (err) {
+    console.error("Error al eliminar estudio:", err);
+  }
+};
+
+
   const handleToggle = (seccion) => {
     if (seccionAbierta === seccion) {
       setSeccionAbierta(null);
@@ -107,6 +122,19 @@ const PerfilPaciente = () => {
       setSeccionAbierta(seccion);
     }
   };
+
+  useEffect(() => {
+  const cargarEstudios = async () => {
+    if (!id || !tratamientoActivo) return;
+
+    const estudiosRef = collection(db, `usuarios/${id}/tratamientos/activo/estudios`);
+    const snapshot = await getDocs(estudiosRef);
+    const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setEstudios(lista);
+  };
+
+  cargarEstudios();
+}, [id, tratamientoActivo]);
 
   return (
     <div className="perfil-paciente">
@@ -208,11 +236,32 @@ const PerfilPaciente = () => {
           )}
 
           {seccionAbierta === "estudios" && (
-            <div className="seccion">
-              <h3>Estudios</h3>
-              <p>Futuro módulo de estudios aquí.</p>
-            </div>
-          )}
+  <div className="seccion estudios">
+    <h3>Estudios Clínicos</h3>
+    {estudios.length === 0 ? (
+      <p>No hay estudios cargados</p>
+    ) : (
+      <div className="estudios-scroll">
+        {estudios.map(est => (
+          <div key={est.id} className="card-estudio">
+            <p><strong>Fecha:</strong> {formatFecha(est.fecha)}</p>
+            <p><strong>Tipo:</strong> {est.tipoEstudio}</p>
+            {est.foliculos && <p><strong>Folículos:</strong> {est.foliculos}</p>}
+            {est.ovarioDerecho && <p><strong>Ovario Derecho:</strong> {est.ovarioDerecho}</p>}
+            {est.ovarioIzquierdo && <p><strong>Ovario Izquierdo:</strong> {est.ovarioIzquierdo}</p>}
+            {est.estradiol && <p><strong>Estradiol:</strong> {est.estradiol}</p>}
+            {est.progesterona && <p><strong>Progesterona:</strong> {est.progesterona}</p>}
+            {est.lh && <p><strong>LH:</strong> {est.lh}</p>}
+            {est.recuentoFolicular && <p><strong>Recuento Folicular:</strong> {est.recuentoFolicular}</p>}
+            <button onClick={() => eliminarEstudio(est.id)}>Eliminar</button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+
 
           {mostrarModal && (
             <div className="modal-confirmacion">
