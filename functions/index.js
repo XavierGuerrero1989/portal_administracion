@@ -1,52 +1,84 @@
 // functions/index.js
-const { https } = require("firebase-functions/v2");
-const admin = require("firebase-admin");
-const sgMail = require("@sendgrid/mail");
-const functions = require("firebase-functions");
-const cors = require("cors")({ origin: true }); // Habilita CORS
 
+// 🔥 Firebase Functions v2 (para onCall)
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const admin = require("firebase-admin");
+
+// ⚙️ Functions v1 (para eliminarPacienteConTodo y otras cosas HTTP)
+const functions = require("firebase-functions");
+
+// 🌐 CORS para funciones HTTP clásicas
+const cors = require("cors")({ origin: true });
+
+// Inicializar Firebase Admin
 admin.initializeApp();
 
-exports.crearPacienteBasico = https.onCall(
+/* ──────────────────────────────────────────────────────────────
+    📌 crearPacienteBasico (CALLABLE, SIN ENVÍO DE MAIL)
+    - Lo llama el portal con httpsCallable
+    - Crea usuario en Auth
+    - Crea documento en /usuarios
+    - NO envía email (lo hará luego Firebase Auth con "Olvidé mi contraseña")
+   ────────────────────────────────────────────────────────────── */
+exports.crearPacienteBasico = onCall(
   {
-    secrets: ["SENDGRID_API_KEY", "SENDGRID_FROM_EMAIL"],
+    region: "us-central1",
   },
-  async (data, context) => {
-    console.log("📥 Datos recibidos:", data);
+  async (request) => {
+    console.log("📥 Datos recibidos en crearPacienteBasico:", request.data);
 
-    const { email, dni, nombre, apellido } = data.data;
+    const { email, dni, nombre, apellido } = request.data || {};
 
+    // Validación básica
     if (!email || typeof email !== "string" || !dni || typeof dni !== "string") {
-      console.warn("❌ Faltan campos obligatorios:", { email, dni });
-      throw new https.HttpsError(
+      console.warn("❌ Faltan campos obligatorios o formato incorrecto:", {
+        email,
+        dni,
+      });
+      throw new HttpsError(
         "invalid-argument",
         "Email y DNI son campos obligatorios."
       );
     }
 
     try {
-      // Verificamos duplicados por DNI
-      const snapshot = await admin.firestore()
+      /* ────────────────────────────────
+         1️⃣ Verificar duplicado por DNI
+      ──────────────────────────────── */
+      const snapshot = await admin
+        .firestore()
         .collection("usuarios")
         .where("dni", "==", dni)
         .limit(1)
         .get();
 
       if (!snapshot.empty) {
-        throw new https.HttpsError("already-exists", "Ya existe un paciente con ese DNI.");
+        console.warn("⚠️ Ya existe un paciente con ese DNI:", dni);
+        throw new HttpsError(
+          "already-exists",
+          "Ya existe un paciente con ese DNI."
+        );
       }
 
-      // Crear usuario en Auth
+      /* ────────────────────────────────
+         2️⃣ Crear usuario en Auth
+      ──────────────────────────────── */
       const userRecord = await admin.auth().createUser({
         email,
         emailVerified: false,
         disabled: false,
       });
 
-      // Asignar rol
-      await admin.auth().setCustomUserClaims(userRecord.uid, { rol: "paciente" });
+      console.log("✅ Usuario creado en Auth:", userRecord.uid);
 
-      // Guardar en Firestore
+      // Asignar rol custom
+      await admin.auth().setCustomUserClaims(userRecord.uid, {
+        rol: "paciente",
+      });
+
+      /* ────────────────────────────────
+         3️⃣ Guardar datos básicos en Firestore
+      ──────────────────────────────── */
       await admin.firestore().collection("usuarios").doc(userRecord.uid).set({
         nombre,
         apellido,
@@ -56,41 +88,28 @@ exports.crearPacienteBasico = https.onCall(
         fechaCreacion: new Date(),
       });
 
-      // Generar link y enviar email
-      const link = await admin.auth().generatePasswordResetLink(email);
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      console.log("✅ Documento de usuario creado en Firestore:", userRecord.uid);
 
-      const msg = {
-        to: email,
-        from: process.env.SENDGRID_FROM_EMAIL,
-        subject: "Bienvenida a FertiApp: Activá tu cuenta",
-        html: `
-          <p>Hola ${nombre},</p>
-          <p>Has sido registrada/o como paciente en FertiApp.</p>
-          <p>Para acceder a la aplicación, hacé clic en el siguiente botón y elegí tu contraseña:</p>
-          <p><a href="${link}" style="display:inline-block;padding:10px 20px;background-color:#00bfa6;color:white;text-decoration:none;border-radius:5px;">Activar mi cuenta</a></p>
-          <p>Gracias,<br>Equipo de FertiApp</p>
-        `,
+      /* ────────────────────────────────
+         4️⃣ Fin — sin envío de email
+      ──────────────────────────────── */
+
+      return {
+        success: true,
+        uid: userRecord.uid,
+        emailSent: false, // explícito para el frontend
       };
-
-      try {
-        console.log("📬 Preparando email para:", email);
-        await sgMail.send(msg);
-        console.log("✅ Email enviado a:", email);
-      } catch (sendError) {
-        console.error("❌ Error al enviar email:", sendError.response?.body || sendError.message);
-        throw new https.HttpsError("internal", "Error al enviar el correo.");
-      }
-
-      return { success: true, uid: userRecord.uid };
     } catch (error) {
       console.error("❌ Error en crearPacienteBasico:", error);
-      throw new https.HttpsError("internal", error.message);
+      throw new HttpsError("internal", error.message || "Error interno.");
     }
   }
 );
 
-// 🗑️ ELIMINAR PACIENTE CON TODO
+/* ──────────────────────────────────────────────────────────────
+    🗑️ eliminarPacienteConTodo (HTTP + CORS)
+    - Igual que lo tenías antes
+   ────────────────────────────────────────────────────────────── */
 exports.eliminarPacienteConTodo = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== "DELETE") {
@@ -144,13 +163,20 @@ exports.eliminarPacienteConTodo = functions.https.onRequest((req, res) => {
       try {
         await admin.auth().deleteUser(id);
       } catch (authError) {
-        console.warn("⚠️ No se pudo eliminar en Auth (puede no existir):", authError.message);
+        console.warn(
+          "⚠️ No se pudo eliminar en Auth (puede no existir):",
+          authError.message
+        );
       }
 
-      return res.status(200).json({ mensaje: "Paciente eliminado correctamente con todos sus datos." });
+      return res.status(200).json({
+        mensaje: "Paciente eliminado correctamente con todos sus datos.",
+      });
     } catch (error) {
       console.error("❌ Error al eliminar paciente:", error);
-      return res.status(500).json({ error: "Error interno al eliminar el paciente." });
+      return res
+        .status(500)
+        .json({ error: "Error interno al eliminar el paciente." });
     }
   });
 });

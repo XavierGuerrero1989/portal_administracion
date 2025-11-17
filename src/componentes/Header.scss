@@ -1,38 +1,218 @@
+@import "../styles/variables";
+
 .header {
-  background-color: #343a40;
+  background-color: $primary-color;
+  color: #ffffff;
   padding: 10px 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  position: relative; // para centrar la fecha
+  z-index: 10;
+}
 
+/* NAV LINKS IZQUIERDA */
+.nav-links {
+  display: flex;
+  gap: 20px;
+
+  a {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    position: relative;
+    padding-bottom: 2px;
+
+    &.active {
+      border-bottom: 2px solid $secondary-color;
+    }
+
+    &:hover {
+      color: $secondary-color;
+    }
+  }
+}
+
+/* FECHA CENTRADA */
+.fecha-hoy {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+
+  .icono-calendario {
+    color: $secondary-color;
+  }
+}
+
+/* ACCIONES DERECHA (campana + logout) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.btn-icon:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-notificaciones {
+  .icono-campana {
+    width: 18px;
+    height: 18px;
+    color: #ffffff;
+  }
+
+  &--active {
+    border-color: #ff4d4f;
+    background-color: rgba(255, 77, 79, 0.14);
+
+    .icono-campana.activa {
+      color: #ff4d4f;
+      /* visual de “rellena”: el trazo y el interior en rojo */
+      svg {
+        fill: currentColor;
+      }
+    }
+  }
+}
+
+/* LOGOUT */
+.btn-logout {
+  background-color: transparent;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-logout:hover {
+  background-color: #ffffff;
+  color: $primary-color;
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* MODAL DE NOTIFICACIONES */
+.notifications-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 80px;
+  z-index: 40;
+}
+
+.notifications-modal {
+  background-color: #ffffff;
+  color: #222222;
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.notifications-modal h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.sin-notificaciones {
+  margin: 10px 0 20px;
+  font-size: 0.95rem;
+}
+
+.lista-notificaciones {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.item-notificacion {
+  padding: 10px 0;
+  border-bottom: 1px solid #ececec;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  h4 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+  }
+
+  .fecha-notificacion {
+    display: block;
+    font-size: 0.8rem;
+    color: #777777;
+  }
+}
+
+.btn-cerrar-modal {
+  margin-top: 10px;
+  background-color: $primary-color;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  float: right;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-cerrar-modal:hover {
+  background-color: darken($primary-color, 6%);
+  transform: translateY(-1px);
+}
+
+/* Responsive simple */
+@media (max-width: 768px) {
   .nav-links {
-    display: flex;
-    gap: 20px;
+    gap: 12px;
 
     a {
-      color: #ffffff;
-      text-decoration: none;
-      font-weight: 500;
-
-      &.active {
-        border-bottom: 2px solid #00bfa6;
-      }
-
-      &:hover {
-        color: #00bfa6;
-      }
+      font-size: 0.85rem;
     }
   }
 
   .fecha-hoy {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #ffffff;
-    font-size: 0.95rem;
-
-    .icono {
-      color: #00bfa6;
-    }
+    display: none; // si molesta en mobile, se puede ocultar
   }
 }

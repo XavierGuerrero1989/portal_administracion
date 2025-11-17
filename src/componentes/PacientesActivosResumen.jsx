@@ -21,14 +21,14 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
 
         tratamientosSnap.forEach((tratDoc) => {
           const trat = tratDoc.data();
+
           if (trat.activo) {
             const fechaInicio = trat.fechaInicio?.seconds
               ? new Date(trat.fechaInicio.seconds * 1000)
               : new Date(trat.fechaInicio);
 
-            const diaActual = Math.floor(
-              (hoy - fechaInicio) / (1000 * 60 * 60 * 24)
-            ) + 1;
+            const diaActual =
+              Math.floor((hoy - fechaInicio) / (1000 * 60 * 60 * 24)) + 1;
 
             const drogas = [];
 
@@ -41,6 +41,7 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
               nombre: `${usuarioData.nombre} ${usuarioData.apellido}`,
               fechaInicio: fechaInicio.toLocaleDateString(),
               tipo: trat.tipo || "N/A",
+              diagnostico: trat.diagnostico || "No especificado", // 🔥 NUEVO
               dia: diaActual,
               drogas,
             });
@@ -60,6 +61,7 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
   return (
     <div className="pacientes-activos">
       <h3 className="titulo">Pacientes en tratamiento activo</h3>
+
       {pacientes.length === 0 ? (
         <p className="mensaje-vacio">No hay pacientes activos.</p>
       ) : (
@@ -67,9 +69,17 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
           {pacientes.map((p, i) => (
             <div key={i} className="card-paciente">
               <div className="nombre">{p.nombre}</div>
+
               <div className="detalle">
-                <span>📅 Inicio: {p.fechaInicio} — Día {p.dia}</span>
-                <span>🧬 Tipo: {p.tipo}</span>
+                <span>
+                  📅 Inicio: {p.fechaInicio} — Días desde estímulo: {p.dia}
+                </span>
+
+                <span>🧬 Tipo de tratamiento: {p.tipo}</span>
+
+                {/* 🔥 NUEVO CAMPO DIAGNÓSTICO */}
+                <span>🩺 Diagnóstico: {p.diagnostico}</span>
+
                 <span>💊 Drogas: {p.drogas.join(", ") || "Ninguna"}</span>
               </div>
             </div>

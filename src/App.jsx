@@ -1,9 +1,8 @@
 import "./App.scss";
 
-import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import Dashboard from "./paginas/Dashboard";
-import Header from "./componentes/Header";
 import Login from "./paginas/login";
 import NuevoPaciente from "./paginas/NuevoPaciente";
 import Pacientes from "./paginas/Pacientes";
@@ -15,6 +14,8 @@ import AnalisisYEvolucion from "./paginas/AnalisisYEvolucion";
 import HistorialPaciente from "./paginas/HistorialPaciente";
 import DetalleTratamiento from "./paginas/DetalleTratamiento";
 import EstadisticasIA from "./paginas/EstadisticasIA";
+import RecuperarClave from "./paginas/RecuperarClave";
+import LayoutPrivado from "./componentes/LayoutPrivado";
 
 const App = () => {
   return (
@@ -23,84 +24,72 @@ const App = () => {
         {/* LOGIN (pública) */}
         <Route path="/" element={<Login />} />
 
+        {/* RECUPERAR CONTRASEÑA (pública) */}
+        <Route path="/recuperar-clave" element={<RecuperarClave />} />
+
         {/* RUTAS PRIVADAS */}
         <Route
           path="/dashboard"
           element={
             <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <Dashboard />
-                </div>
-              </>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/pacientes"
-          element={
-            <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <Pacientes />
-                </div>
-              </>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/pacientes/nuevo"
-          element={
-            <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <NuevoPaciente />
-                </div>
-              </>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/tratamientos"
-          element={
-            <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <Tratamientos />
-                </div>
-              </>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/estadisticasIA"
-          element={
-            <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <EstadisticasIA />
-                </div>
-              </>
+              <LayoutPrivado>
+                <Dashboard />
+              </LayoutPrivado>
             </PrivateRoute>
           }
         />
 
-        {/* CORREGIDA */}
+        <Route
+          path="/pacientes"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <Pacientes />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/pacientes/nuevo"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <NuevoPaciente />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/tratamientos"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <Tratamientos />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/estadisticasIA"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <EstadisticasIA />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/pacientes/:id/perfil"
           element={
             <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <PerfilPaciente />
-                </div>
-              </>
+              <LayoutPrivado>
+                <PerfilPaciente />
+              </LayoutPrivado>
             </PrivateRoute>
           }
         />
@@ -109,12 +98,9 @@ const App = () => {
           path="/pacientes/:id/evolucion"
           element={
             <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <AnalisisYEvolucion />
-                </div>
-              </>
+              <LayoutPrivado>
+                <AnalisisYEvolucion />
+              </LayoutPrivado>
             </PrivateRoute>
           }
         />
@@ -123,30 +109,23 @@ const App = () => {
           path="/pacientes/:id/historial"
           element={
             <PrivateRoute>
-              <>
-                <Header />
-                <div className="main-content">
-                  <HistorialPaciente/>
-                </div>
-              </>
+              <LayoutPrivado>
+                <HistorialPaciente />
+              </LayoutPrivado>
             </PrivateRoute>
           }
         />
 
         <Route
-  path="/tratamientos/:idUsuario/:idTratamiento"
-  element={
-    <PrivateRoute>
-      <>
-        <Header />
-        <div className="main-content">
-          <DetalleTratamiento />
-        </div>
-      </>
-    </PrivateRoute>
-  }
-/>
-
+          path="/tratamientos/:idUsuario/:idTratamiento"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <DetalleTratamiento />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
 
         {/* RUTA DESCONOCIDA */}
         <Route path="*" element={<Navigate to="/" />} />

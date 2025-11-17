@@ -1,6 +1,6 @@
 @import "../styles/variables";
 
-.login-container {
+.recovery-container {
   height: 100vh;
   width: 100vw;
   display: flex;
@@ -13,48 +13,55 @@
   color: #ffffff;
 }
 
-.login-form {
+.recovery-form {
   background-color: transparent;
   box-shadow: none;
   border-radius: 0;
   padding: 0;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   text-align: center;
 }
 
-/* NUEVO: imagen del laboratorio */
-.login-lab {
-  width: 50vh;
-  max-width: 400px;
-  margin-bottom: 20px;
+/* Logo laboratorio */
+.recovery-lab {
+  width: 25vh;
+  max-width: 300px;
+  margin-bottom: 18px;
   display: block;
   margin-left: auto;
   margin-right: auto;
+  border-radius: 6px;
   border-style: solid;
-  border-color: rgba(95,188,203);
-  border-radius: 5px;
+  border-color: $secondary-color;
 }
 
 /* Logo principal */
-.login-logo {
-  margin-bottom: 24px;
-  width: 30vh;
-  max-width: 260px;
+.recovery-logo {
+  margin-bottom: 20px;
+  width: 26vh;
+  max-width: 230px;
   border-radius: 16px;
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
 
-.login-form h2 {
-  margin-bottom: 24px;
+.recovery-form h2 {
+  margin-bottom: 12px;
   color: #ffffff;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
 }
 
-.login-form input {
+.recovery-text {
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.recovery-form input {
   width: 100%;
   padding: 12px;
   margin-bottom: 16px;
@@ -67,16 +74,17 @@
   outline: none;
 }
 
-.login-form input::placeholder {
+.recovery-form input::placeholder {
   color: rgba(255, 255, 255, 0.75);
 }
 
-.login-form input:focus {
+.recovery-form input:focus {
   border-color: $secondary-color;
   background-color: rgba(255, 255, 255, 0.18);
 }
 
-.btn-login {
+/* Botón principal */
+.btn-recovery {
   width: 100%;
   background-color: $secondary-color;
   color: #ffffff;
@@ -86,33 +94,46 @@
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 4px;
   transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
-.btn-login:hover {
+.btn-recovery:hover {
   background-color: darken($secondary-color, 8%);
   transform: translateY(-1px);
 }
 
-.btn-login:active {
+.btn-recovery:active {
   transform: translateY(0);
 }
 
-.login-error {
-  margin-top: 12px;
+/* Mensajes */
+.recovery-success {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #c8ffd7;
+}
+
+.recovery-error {
+  margin-top: 14px;
   font-size: 14px;
   color: #ffdddd;
 }
 
-.recuperar {
-  margin-top: 16px;
-  font-size: 14px;
+/* Botón volver */
+.btn-volver {
+  margin-top: 20px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   color: #ffffff;
-  text-decoration: underline;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
   cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.recuperar:hover {
-  color: lighten(#ffffff, 10%);
+.btn-volver:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
 }

@@ -1,0 +1,12 @@
+@import "../styles/variables";
+
+.layout-privado {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* el contenido crece y empuja el footer hacia abajo */
+.layout-privado .main-content {
+  flex: 1;
+}
