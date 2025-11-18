@@ -1,52 +1,85 @@
 // Pacientes.scss
 
 .pacientes-container {
-  padding: 2rem;
-  background-color: #f9f9f9;
+  padding: 2rem 2.5rem;
+  background-color: #f7f7fb;
   min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .header1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.8rem;
 
   h2 {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
     margin: 0;
-    color: black;
+    color: #111827;
+    letter-spacing: 0.02em;
   }
 
   .acciones {
     display: flex;
     gap: 1rem;
+    align-items: center;
 
     input {
       padding: 0.5rem 0.75rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
       font-size: 0.95rem;
+      background-color: #ffffff;
+      min-width: 260px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &:focus {
+        border-color: #b325eb;
+        box-shadow: 0 0 0 2px rgba(179, 37, 235, 0.15);
+      }
     }
 
     select {
-      padding: 0.5rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      padding: 0.5rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
       font-size: 0.95rem;
+      background-color: #ffffff;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &:focus {
+        border-color: #b325eb;
+        box-shadow: 0 0 0 2px rgba(179, 37, 235, 0.15);
+      }
     }
 
     .nuevo {
-      padding: 0.5rem 1rem;
-      background-color: #00bfa6;
-      color: white;
+      padding: 0.55rem 1.2rem;
+      background: linear-gradient(135deg, #b325eb, #e056fd);
+      color: #ffffff;
       border: none;
-      border-radius: 6px;
+      border-radius: 999px;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(179, 37, 235, 0.25);
+      transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
 
       &:hover {
-        background-color: #009e8c;
+        transform: translateY(-1px);
+        filter: brightness(1.02);
+        box-shadow: 0 6px 16px rgba(179, 37, 235, 0.3);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 3px 8px rgba(179, 37, 235, 0.2);
       }
     }
   }
@@ -55,19 +88,28 @@
 .tabla-pacientes {
   width: 100%;
   border-collapse: collapse;
-  background-color: white;
-  border-radius: 8px;
+  background-color: #ffffff;
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 
-  th, td {
-    padding: 0.75rem;
+  th,
+  td {
+    padding: 0.75rem 1rem;
     text-align: left;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #f1f1f5;
+    font-size: 0.9rem;
   }
 
   th {
-    background-color: #f1f1f1;
+    background: linear-gradient(135deg, #faf5ff, #f3f4ff);
     font-weight: 600;
+    color: #4b5563;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  tbody tr:hover {
+    background-color: #faf5ff;
   }
 
   .acciones {
@@ -75,35 +117,54 @@
     gap: 0.4rem;
 
     button {
-      background: none;
+      background: #f3f4ff;
       border: none;
-      font-size: 1.1rem;
+      font-size: 1rem;
       cursor: pointer;
+      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
 
       &:hover {
-        color: #00bfa6;
+        background-color: #e4ddff;
+        color: #b325eb;
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0);
       }
     }
   }
 
   .badge {
-    padding: 0.3rem 0.6rem;
-    border-radius: 4px;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
     font-size: 0.8rem;
-    font-weight: bold;
-    color: white;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
 
     &.activo {
       background-color: #00bfa6;
+      color: #ffffff;
     }
 
     &.finalizado {
-      background-color: #666;
+      background-color: #e5e7eb;
+      color: #374151;
     }
 
     &.sin-tratamiento {
-      background-color: #ccc;
-      color: #333;
+      background-color: #f5f3ff;
+      color: #6b21a8;
+      border: 1px solid #e9d5ff;
     }
   }
 }

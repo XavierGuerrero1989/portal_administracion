@@ -102,41 +102,38 @@ const AnalisisYEvolucion = () => {
     return fechas.sort((a, b) => b - a)[0].toLocaleDateString();
   };
 
-const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
-  const diasUnicos = Array.from(
-    new Set(
-      estudios
-        .filter((e) => e.tipoEstudio === tipoEstudioFiltro)
-        .map((e) => {
-          const f = parseFecha(e.fecha);
-          if (!f) return null;
-          const dia = f.getDate().toString().padStart(2, "0");
-          const mes = (f.getMonth() + 1).toString().padStart(2, "0");
-          const año = f.getFullYear();
-          return `${año}-${mes}-${dia}`;
-        })
-        .filter(Boolean)
+  const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
+    const diasUnicos = Array.from(
+      new Set(
+        estudios
+          .filter((e) => e.tipoEstudio === tipoEstudioFiltro)
+          .map((e) => {
+            const f = parseFecha(e.fecha);
+            if (!f) return null;
+            const dia = f.getDate().toString().padStart(2, "0");
+            const mes = (f.getMonth() + 1).toString().padStart(2, "0");
+            const año = f.getFullYear();
+            return `${año}-${mes}-${dia}`;
+          })
+          .filter(Boolean)
+      )
     )
-  )
-    .map((str) => new Date(str))
-    .sort((a, b) => a - b);
+      .map((str) => new Date(str))
+      .sort((a, b) => a - b);
 
-  if (diasUnicos.length < 2) return "-";
+    if (diasUnicos.length < 2) return "-";
 
-  const intervalos = diasUnicos.slice(1).map((fecha, i) => {
-    const anterior = diasUnicos[i];
-    const diferencia = (fecha - anterior) / (1000 * 60 * 60 * 24);
-    return diferencia;
-  });
+    const intervalos = diasUnicos.slice(1).map((fecha, i) => {
+      const anterior = diasUnicos[i];
+      const diferencia = (fecha - anterior) / (1000 * 60 * 60 * 24);
+      return diferencia;
+    });
 
-  const promedio = intervalos.reduce((a, b) => a + b, 0) / intervalos.length;
-  return promedio.toFixed(1) + " días";
-};
+    const promedio = intervalos.reduce((a, b) => a + b, 0) / intervalos.length;
+    return promedio.toFixed(1) + " días";
+  };
 
-
-
-
-
+  // 👉 ahora excluimos creadoEn para que no aparezca como Timestamp(...)
   const camposExcluidos = [
     "id",
     "tipoEstudio",
@@ -147,6 +144,7 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
     "usuarioId",
     "pacienteId",
     "creadoPor",
+    "creadoEn",
   ];
 
   const mostrarCreador = (creadoPor) => {
@@ -156,6 +154,17 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
         Cargado por: {creadoPor === "medico" ? "el médico" : "la paciente"}
       </p>
     );
+  };
+
+  const formatearCreadoEn = (creadoEn) => {
+    const fecha = parseFecha(creadoEn);
+    if (!fecha) return null;
+    const fechaStr = fecha.toLocaleDateString();
+    const horaStr = fecha.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${fechaStr} ${horaStr}`;
   };
 
   return (
@@ -172,12 +181,36 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
         {estudios.map((est) => (
           <div className="card-estudio" key={est.id}>
             <strong>{est.tipoEstudio || "Sin tipo"}</strong>
-            <p>Fecha: {parseFecha(est.fecha)?.toLocaleDateString() || "Sin fecha"}</p>
+            <p>
+              Fecha:{" "}
+              {parseFecha(est.fecha)?.toLocaleDateString() || "Sin fecha"}
+            </p>
+
+            {est.creadoEn && (
+              <p className="creado-en">
+                Creado el: {formatearCreadoEn(est.creadoEn)}
+              </p>
+            )}
+
             <ul>
               {Object.entries(est).map(([clave, valor]) => {
-                if (camposExcluidos.includes(clave)) return null;
-                return <li key={clave}>{`${formatearClave(clave)}: ${valor}`}</li>;
-              })}
+  if (camposExcluidos.includes(clave)) return null;
+
+  // Ocultar campos vacíos, null, undefined o strings en blanco
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === "" ||
+    (typeof valor === "string" && valor.trim() === "")
+  ) {
+    return null;
+  }
+
+  return (
+    <li key={clave}>{`${formatearClave(clave)}: ${valor}`}</li>
+  );
+})}
+
             </ul>
             {mostrarCreador(est.creadoPor)}
             {est.archivoURL && (
@@ -193,14 +226,35 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
         <>
           <h3>Evolución de valores hormonales</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={graficoAnalisis} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+            <LineChart
+              data={graficoAnalisis}
+              margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+            >
               <XAxis dataKey="fecha" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="estradiol" stroke="#8884d8" name="Estradiol" connectNulls />
-              <Line type="monotone" dataKey="progesterona" stroke="#82ca9d" name="Progesterona" connectNulls />
-              <Line type="monotone" dataKey="lh" stroke="#ffc658" name="LH" connectNulls />
+              <Line
+                type="monotone"
+                dataKey="estradiol"
+                stroke="#8884d8"
+                name="Estradiol"
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="progesterona"
+                stroke="#82ca9d"
+                name="Progesterona"
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="lh"
+                stroke="#ffc658"
+                name="LH"
+                connectNulls
+              />
             </LineChart>
           </ResponsiveContainer>
         </>
@@ -210,14 +264,35 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
         <>
           <h3>Evolución ecográfica</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={graficoEcografias} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+            <LineChart
+              data={graficoEcografias}
+              margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+            >
               <XAxis dataKey="fecha" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="total" stroke="#ff7300" name="Recuento total" connectNulls />
-              <Line type="monotone" dataKey="derecho" stroke="#82ca9d" name="Ovario derecho" connectNulls />
-              <Line type="monotone" dataKey="izquierdo" stroke="#8884d8" name="Ovario izquierdo" connectNulls />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#ff7300"
+                name="Recuento total"
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="derecho"
+                stroke="#82ca9d"
+                name="Ovario derecho"
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="izquierdo"
+                stroke="#8884d8"
+                name="Ovario izquierdo"
+                connectNulls
+              />
             </LineChart>
           </ResponsiveContainer>
         </>
@@ -228,11 +303,18 @@ const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
         <div>Promedio Estradiol: {calcularPromedio("estradiol")}</div>
         <div>Promedio Progesterona: {calcularPromedio("progesterona")}</div>
         <div>Promedio LH: {calcularPromedio("lh")}</div>
-        <div>Promedio Recuento Folicular: {calcularPromedio("foliculos")}</div>
+        <div>
+          Promedio Recuento Folicular: {calcularPromedio("foliculos")}
+        </div>
         <div>Último estudio: {calcularUltimaFecha()}</div>
-        <div>Frecuencia de análisis clínicos: {calcularFrecuenciaPorTipo("Análisis")}</div>
-<div>Frecuencia de ecografías: {calcularFrecuenciaPorTipo("Ecografía")}</div>
-
+        <div>
+          Frecuencia de análisis clínicos:{" "}
+          {calcularFrecuenciaPorTipo("Análisis")}
+        </div>
+        <div>
+          Frecuencia de ecografías:{" "}
+          {calcularFrecuenciaPorTipo("Ecografía")}
+        </div>
       </div>
     </div>
   );

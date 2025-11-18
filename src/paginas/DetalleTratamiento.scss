@@ -34,6 +34,50 @@
     color: #444;
   }
 
+  .texto-vacio {
+    margin-top: 0.5rem;
+    color: #777;
+    font-style: italic;
+  }
+
+  .cabecera-tratamiento {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    background: #fafafa;
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+
+    .info-paciente,
+    .info-tratamiento {
+      min-width: 220px;
+
+      p {
+        margin: 0.2rem 0;
+      }
+    }
+
+    .info-tratamiento {
+      .btn-editar-diagnostico {
+        margin-top: 0.4rem;
+        background-color: #e3f2fd;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: #1565c0;
+        font-weight: 500;
+
+        &:hover {
+          background-color: #bbdefb;
+        }
+      }
+    }
+  }
+
   .acordeon {
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -85,9 +129,12 @@
           padding: 0.3rem 0;
           color: #333;
 
-          .estado-texto {
+          .estado-confirmacion {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
             font-size: 0.85rem;
-            color: #777;
+            color: #555;
           }
         }
       }
@@ -126,7 +173,7 @@
       padding: 2rem;
       border-radius: 10px;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       position: relative;
 
@@ -143,12 +190,19 @@
         font-size: 0.95rem;
         color: #555;
 
-        input {
+        input,
+        select,
+        textarea {
           margin-top: 0.3rem;
           padding: 0.4rem;
           border-radius: 6px;
           border: 1px solid #ccc;
           font-size: 1rem;
+        }
+
+        textarea {
+          resize: vertical;
+          min-height: 70px;
         }
       }
 
@@ -202,51 +256,94 @@
   }
 
   .btn-agregar-medicamento {
-  margin-bottom: 1rem;
-  background-color: #e0f7fa;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.estudios-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.card-estudio {
-  background: white;
-  border-radius: 1rem;
-  padding: 1rem;
-  box-shadow: 0 0 10px #00000010;
-  width: 250px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-
-  h4 {
+    margin-bottom: 1rem;
+    background-color: #e0f7fa;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
     font-weight: bold;
-    margin-bottom: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
   }
 
-  p {
-    margin: 0 0 0.5rem 0;
-    color: #555;
+  .estudios-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
   }
 
-  ul {
-    padding-left: 1rem;
-    li {
-      margin-bottom: 0.25rem;
+  .card-estudio {
+    background: white;
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 0 0 10px #00000010;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    h4 {
+      font-weight: bold;
+      margin-bottom: 0.3rem;
+    }
+
+    p {
+      margin: 0 0 0.4rem 0;
+      color: #555;
+    }
+
+    .subtipo {
+      font-size: 0.9rem;
+      color: #777;
+    }
+
+    .comentarios {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    ul {
+      padding-left: 1rem;
+      margin: 0.3rem 0 0.5rem 0;
+
+      li {
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+      }
+    }
+
+    .btn-eliminar-estudio {
+      margin-top: 0.5rem;
+      align-self: flex-start;
+      background-color: #ffebee;
+      color: #c62828;
+      border: none;
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #ffcdd2;
+      }
     }
   }
-}
 
+  @media (max-width: 768px) {
+    .cabecera-tratamiento {
+      flex-direction: column;
+    }
 
+    .card-estudio {
+      width: 100%;
+    }
+  }
 }

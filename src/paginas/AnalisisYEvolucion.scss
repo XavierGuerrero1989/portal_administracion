@@ -43,6 +43,14 @@
       margin-bottom: 0.5rem;
     }
 
+    // Fecha/hora de creación formateada
+    .creado-en {
+      font-size: 0.85rem;
+      color: #777;
+      margin-top: 0.1rem;
+      margin-bottom: 0.5rem;
+    }
+
     ul {
       padding-left: 1.2rem;
       margin-bottom: 0.5rem;
@@ -67,7 +75,7 @@
 
     .autor-carga {
       font-size: 0.85rem;
-      color: #999;
+      color: #555;
       font-style: italic;
       margin-top: 0.5rem;
     }

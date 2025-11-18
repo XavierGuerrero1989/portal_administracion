@@ -1,5 +1,7 @@
 .historial-paciente {
   padding: 2rem;
+  background-color: #f9f9f9;
+  min-height: 100vh;
 
   .cabecera {
     display: flex;
@@ -10,22 +12,26 @@
     h2 {
       font-size: 1.8rem;
       color: #333;
+      font-weight: 600;
     }
 
     .btn-pdf {
-      background-color: #2196f3;
-      color: white;
+      background-color: #b325eb; // primario del sistema
+      color: #ffffff;
       border: none;
-      padding: 0.5rem 1rem;
+      padding: 0.5rem 1.2rem;
       border-radius: 8px;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      transition: background-color 0.2s ease;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background-color 0.2s ease, transform 0.1s ease;
 
       &:hover {
-        background-color: #1976d2;
+        background-color: #9519c0;
+        transform: translateY(-1px);
       }
 
       svg {
@@ -43,13 +49,22 @@
     button {
       background-color: #f1f1f1;
       border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      font-size: 0.85rem;
+      color: #555;
+      transition: background-color 0.2s ease, color 0.2s ease,
+        box-shadow 0.2s ease;
 
       &:hover {
         background-color: #e0e0e0;
+      }
+
+      &.activo {
+        background-color: #b325eb;
+        color: #ffffff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02);
       }
     }
   }
@@ -58,6 +73,11 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  .sin-eventos {
+    color: #777;
+    font-size: 0.95rem;
   }
 
   .evento {
@@ -110,6 +130,10 @@
     }
 
     .contenido {
+      .descripcion {
+    white-space: pre-line; // respeta los \n y se ven varios renglones
+  }
+  
       .fecha {
         font-size: 0.85rem;
         color: #777;
@@ -118,13 +142,15 @@
 
       h4 {
         margin: 0;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         color: #222;
+        font-weight: 600;
       }
 
       p {
         margin: 0.3rem 0;
         color: #444;
+        font-size: 0.92rem;
       }
 
       .extra {

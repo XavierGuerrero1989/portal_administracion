@@ -14,15 +14,13 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const camposClinicos = [
-  // Identificación básica
   { key: "nombre", label: "Nombre", type: "text" },
   { key: "apellido", label: "Apellido", type: "text" },
   { key: "telefono", label: "Teléfono", type: "text" },
 
-  // Datos generales
   { key: "fechaNacimiento", label: "Fecha de nacimiento", type: "date" },
   { key: "altura", label: "Altura (cm)", type: "number" },
   { key: "peso", label: "Peso (kg)", type: "number" },
@@ -33,7 +31,6 @@ const camposClinicos = [
     options: ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "0+", "0-"],
   },
 
-  // Menstruación y ciclos
   { key: "fum", label: "FUM", type: "date" },
   {
     key: "ritmoMenstrual",
@@ -47,20 +44,14 @@ const camposClinicos = [
     type: "select",
     options: ["", "Sí", "No"],
   },
-  {
-    key: "duracionCiclo",
-    label: "Duración del ciclo (días)",
-    type: "number",
-  },
+  { key: "duracionCiclo", label: "Duración del ciclo (días)", type: "number" },
 
-  // Gestas (G P C A E)
   { key: "gestasG", label: "G (gestas)", type: "number" },
   { key: "gestasP", label: "P (partos)", type: "number" },
   { key: "gestasC", label: "C (cesáreas)", type: "number" },
   { key: "gestasA", label: "A (abortos)", type: "number" },
   { key: "gestasE", label: "E (ectópicos)", type: "number" },
 
-  // Dolor
   {
     key: "dismenorrea",
     label: "Dismenorrea",
@@ -74,7 +65,6 @@ const camposClinicos = [
     options: ["", "No", "Leve", "Moderada", "Severa"],
   },
 
-  // Pareja
   {
     key: "pareja",
     label: "Tipo de pareja",
@@ -83,18 +73,13 @@ const camposClinicos = [
   },
   { key: "nombrePareja", label: "Nombre de la pareja", type: "text" },
 
-  // Alergias / patologías / medicación
   {
     key: "tieneAlergias",
     label: "¿Tiene alergias?",
     type: "select",
     options: ["", "Sí", "No"],
   },
-  {
-    key: "detalleAlergias",
-    label: "Detalle de alergias",
-    type: "textarea",
-  },
+  { key: "detalleAlergias", label: "Detalle de alergias", type: "textarea" },
   { key: "patologias", label: "Patologías relevantes", type: "textarea" },
   {
     key: "medicacionHabitual",
@@ -102,7 +87,6 @@ const camposClinicos = [
     type: "textarea",
   },
 
-  // Antecedentes quirúrgicos
   {
     key: "antecedentesQuirurgicos",
     label: "Antecedentes quirúrgicos",
@@ -115,17 +99,8 @@ const camposClinicos = [
     type: "textarea",
   },
 
-  // Tratamientos previos
-  {
-    key: "fivPrevias",
-    label: "FIV previas",
-    type: "number",
-  },
-  {
-    key: "iiuPrevias",
-    label: "IIU previas",
-    type: "number",
-  },
+  { key: "fivPrevias", label: "FIV previas", type: "number" },
+  { key: "iiuPrevias", label: "IIU previas", type: "number" },
   {
     key: "crioOvulosPrevios",
     label: "Criopreservación de ovocitos previa",
@@ -138,12 +113,7 @@ const camposClinicos = [
   },
 ];
 
-const MEDICAMENTOS_COMERCIALES = [
-  "GONAL",
-  "PERGOVERIS",
-  "CETROTIDE",
-  "CRINONE",
-];
+const MEDICAMENTOS_COMERCIALES = ["GONAL", "PERGOVERIS", "CETROTIDE", "CRINONE"];
 
 const formatFecha = (f) => {
   if (!f) return "-";
@@ -153,8 +123,53 @@ const formatFecha = (f) => {
   return "-";
 };
 
+const combinarFechaHora = (fechaStr, horaStr) => {
+  if (!fechaStr || !horaStr) return null;
+  const [year, month, day] = fechaStr.split("-").map(Number);
+  const [hour, minute] = horaStr.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute || 0);
+};
+
+const agregarDias = (date, dias) => {
+  if (!date) return null;
+  const d = new Date(date);
+  d.setDate(d.getDate() + dias);
+  return d;
+};
+
+// 🔥 AHORA CADA MEDICAMENTO TIENE "DOSIS"
+const crearEstadoInicialTratamiento = () => ({
+  tipo: "",
+  fum: "",
+  fechaInicio: "",
+  medicamentosPlanificados: MEDICAMENTOS_COMERCIALES.reduce(
+    (acc, nombre) => ({
+      ...acc,
+      [nombre]: { selected: false, fecha: "", hora: "", dias: "", dosis: "" },
+    }),
+    {}
+  ),
+});
+
+const crearEstadoInicialEstudio = () => ({
+  tipo: "",
+  subtipo: "",
+  fecha: "",
+  fsh: "",
+  lh: "",
+  estradiol: "",
+  ham: "",
+  progesterona: "",
+  recuentoFolicular: "",
+  ovarioDerecho: "",
+  ovarioIzquierdo: "",
+  comentarios: "",
+});
+
 const PerfilPaciente = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+
   const [paciente, setPaciente] = useState(null);
   const [datosEditados, setDatosEditados] = useState({});
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -162,17 +177,17 @@ const PerfilPaciente = () => {
 
   const [tratamientoActivo, setTratamientoActivo] = useState(null);
   const [mostrarModalInicio, setMostrarModalInicio] = useState(false);
-  const [nuevoTratamiento, setNuevoTratamiento] = useState({
-    tipo: "",
-    fum: "",
-    fechaInicio: "",
-    medicamentosPlanificados: [],
-  });
+  const [nuevoTratamiento, setNuevoTratamiento] = useState(
+    crearEstadoInicialTratamiento()
+  );
 
   const [evoluciones, setEvoluciones] = useState([]);
   const [nuevaEvolucion, setNuevaEvolucion] = useState("");
   const [seccionAbierta, setSeccionAbierta] = useState(null);
+
   const [estudios, setEstudios] = useState([]);
+  const [mostrarModalEstudio, setMostrarModalEstudio] = useState(false);
+  const [nuevoEstudio, setNuevoEstudio] = useState(crearEstadoInicialEstudio());
 
   useEffect(() => {
     const obtenerDatos = async () => {
@@ -182,7 +197,8 @@ const PerfilPaciente = () => {
         const datos = docSnap.data() || {};
 
         Object.keys(datos).forEach((key) => {
-          if (datos[key] === undefined || datos[key] === null) datos[key] = "";
+          if (datos[key] === undefined || datos[key] === null)
+            datos[key] = "";
         });
 
         setPaciente(datos);
@@ -194,7 +210,7 @@ const PerfilPaciente = () => {
           setTratamientoActivo(tratamientoSnap.data());
         }
       } else {
-        console.error("Paciente no encontrado con ID:", id);
+        console.error("Paciente no encontrado");
         setPaciente({ error: true });
       }
     };
@@ -228,7 +244,7 @@ const PerfilPaciente = () => {
     await addDoc(collection(db, `usuarios/${id}/evoluciones`), {
       fecha: new Date(),
       texto: nuevaEvolucion.trim(),
-      creadoPor: "Dr. Nombre",
+      creadoPor: "Dr.",
       timestamp: Date.now(),
     });
     setNuevaEvolucion("");
@@ -246,11 +262,7 @@ const PerfilPaciente = () => {
   };
 
   const handleToggle = (seccion) => {
-    if (seccionAbierta === seccion) {
-      setSeccionAbierta(null);
-    } else {
-      setSeccionAbierta(seccion);
-    }
+    setSeccionAbierta((prev) => (prev === seccion ? null : seccion));
   };
 
   useEffect(() => {
@@ -279,6 +291,8 @@ const PerfilPaciente = () => {
     return valor;
   };
 
+// 🔥  CONTINÚA EXACTAMENTE AQUÍ EN LA PARTE 2
+
   const handleChangeCampo = (key, value) => {
     setDatosEditados((prev) => ({
       ...prev,
@@ -286,6 +300,7 @@ const PerfilPaciente = () => {
     }));
   };
 
+  // CAMBIOS TRATAMIENTO
   const handleChangeNuevoTratamiento = (field, value) => {
     setNuevoTratamiento((prev) => ({
       ...prev,
@@ -293,23 +308,79 @@ const PerfilPaciente = () => {
     }));
   };
 
+  // TOGGLE MEDICAMENTO
   const toggleMedicamentoPlanificado = (nombre) => {
     setNuevoTratamiento((prev) => {
-      const yaEsta = prev.medicamentosPlanificados.includes(nombre);
+      const actual = prev.medicamentosPlanificados[nombre];
       return {
         ...prev,
-        medicamentosPlanificados: yaEsta
-          ? prev.medicamentosPlanificados.filter((m) => m !== nombre)
-          : [...prev.medicamentosPlanificados, nombre],
+        medicamentosPlanificados: {
+          ...prev.medicamentosPlanificados,
+          [nombre]: { ...actual, selected: !actual.selected },
+        },
       };
     });
   };
 
+  const changeFechaMedicamento = (nombre, fecha) => {
+    setNuevoTratamiento((prev) => ({
+      ...prev,
+      medicamentosPlanificados: {
+        ...prev.medicamentosPlanificados,
+        [nombre]: { ...prev.medicamentosPlanificados[nombre], fecha },
+      },
+    }));
+  };
+
+  const changeHoraMedicamento = (nombre, hora) => {
+    setNuevoTratamiento((prev) => ({
+      ...prev,
+      medicamentosPlanificados: {
+        ...prev.medicamentosPlanificados,
+        [nombre]: { ...prev.medicamentosPlanificados[nombre], hora },
+      },
+    }));
+  };
+
+  const changeDiasMedicamento = (nombre, dias) => {
+    setNuevoTratamiento((prev) => ({
+      ...prev,
+      medicamentosPlanificados: {
+        ...prev.medicamentosPlanificados,
+        [nombre]: { ...prev.medicamentosPlanificados[nombre], dias },
+      },
+    }));
+  };
+
+  // 🔥 NUEVO: CAMBIAR DOSIS
+  const changeDosisMedicamento = (nombre, dosis) => {
+    setNuevoTratamiento((prev) => ({
+      ...prev,
+      medicamentosPlanificados: {
+        ...prev.medicamentosPlanificados,
+        [nombre]: { ...prev.medicamentosPlanificados[nombre], dosis },
+      },
+    }));
+  };
+
+  // CREAR TRATAMIENTO (GUARDA DOSIS)
   const crearTratamiento = async () => {
     if (!nuevoTratamiento.tipo || !nuevoTratamiento.fechaInicio) {
-      alert("Por favor, complete al menos el tipo de tratamiento y la fecha de inicio.");
+      alert("Completá tipo y fecha de inicio");
       return;
     }
+
+    const medsArray = Object.entries(
+      nuevoTratamiento.medicamentosPlanificados
+    )
+      .filter(([_, v]) => v.selected)
+      .map(([nombre, v]) => ({
+        nombre,
+        fechaPrimeraAplicacion: v.fecha ? new Date(v.fecha) : null,
+        horaAplicacion: v.hora || "",
+        duracionDias: v.dias ? parseInt(v.dias, 10) || null : null,
+        dosis: v.dosis || "", // 🔥 NUEVO
+      }));
 
     const tratamientoDoc = {
       tipo: nuevoTratamiento.tipo,
@@ -318,7 +389,7 @@ const PerfilPaciente = () => {
         ? new Date(nuevoTratamiento.fechaInicio)
         : null,
       fum: nuevoTratamiento.fum ? new Date(nuevoTratamiento.fum) : null,
-      medicamentosPlanificados: nuevoTratamiento.medicamentosPlanificados,
+      medicamentosPlanificados: medsArray,
       creadoEn: new Date(),
     };
 
@@ -326,10 +397,88 @@ const PerfilPaciente = () => {
       const ref = doc(db, `usuarios/${id}/tratamientos/activo`);
       await setDoc(ref, tratamientoDoc);
       setTratamientoActivo(tratamientoDoc);
+
+      // Notificaciones
+      for (const med of medsArray) {
+        if (!med.fechaPrimeraAplicacion || !med.horaAplicacion || !med.duracionDias)
+          continue;
+
+        const fechaBaseStr = med.fechaPrimeraAplicacion
+          .toISOString()
+          .slice(0, 10);
+        const fechaHoraBase = combinarFechaHora(
+          fechaBaseStr,
+          med.horaAplicacion
+        );
+
+        for (let i = 0; i < med.duracionDias; i++) {
+          const fechaHoraNotificacion = agregarDias(fechaHoraBase, i);
+
+          await addDoc(collection(db, `usuarios/${id}/notificaciones`), {
+            tipo: "medicacion",
+            nivel: "primaria",
+            medicamento: med.nombre,
+            dosis: med.dosis || "", // 🔥 NUEVO
+            tratamientoId: "activo",
+            fechaHoraProgramada: fechaHoraNotificacion,
+            diaTratamiento: i + 1,
+            estado: "pendiente",
+            createdAt: new Date(),
+          });
+        }
+      }
+
       setMostrarModalInicio(false);
+      setNuevoTratamiento(crearEstadoInicialTratamiento());
     } catch (err) {
-      console.error("Error al crear tratamiento:", err);
-      alert("Ocurrió un error al iniciar el tratamiento.");
+      console.error(err);
+      alert("Error al crear tratamiento");
+    }
+  };
+
+  const handleChangeNuevoEstudio = (field, value) => {
+    setNuevoEstudio((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const guardarEstudio = async () => {
+    if (!nuevoEstudio.tipo || !nuevoEstudio.fecha) {
+      alert("Completá tipo de estudio y fecha");
+      return;
+    }
+
+    const docEstudio = {
+      tipoEstudio:
+        nuevoEstudio.tipo === "analisis" ? "Análisis" : "Ecografía",
+      subtipo: nuevoEstudio.subtipo || "",
+      fecha: new Date(nuevoEstudio.fecha),
+      fsh: nuevoEstudio.fsh || "",
+      lh: nuevoEstudio.lh || "",
+      estradiol: nuevoEstudio.estradiol || "",
+      ham: nuevoEstudio.ham || "",
+      progesterona: nuevoEstudio.progesterona || "",
+      recuentoFolicular: nuevoEstudio.recuentoFolicular || "",
+      ovarioDerecho: nuevoEstudio.ovarioDerecho || "",
+      ovarioIzquierdo: nuevoEstudio.ovarioIzquierdo || "",
+      comentarios: nuevoEstudio.comentarios || "",
+      creadoEn: new Date(),
+    };
+
+    try {
+      const ref = collection(
+        db,
+        `usuarios/${id}/tratamientos/activo/estudios`
+      );
+      const nuevoRef = await addDoc(ref, docEstudio);
+
+      setEstudios((prev) => [...prev, { id: nuevoRef.id, ...docEstudio }]);
+      setMostrarModalEstudio(false);
+      setNuevoEstudio(crearEstadoInicialEstudio());
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar estudio");
     }
   };
 
@@ -349,7 +498,7 @@ const PerfilPaciente = () => {
               </p>
               <p>
                 <strong>Estado:</strong>{" "}
-                {tratamientoActivo ? "Tratamiento activo" : "Sin tratamiento activo"}
+                {tratamientoActivo ? "Tratamiento activo" : "Sin tratamiento"}
               </p>
             </div>
           </div>
@@ -369,6 +518,7 @@ const PerfilPaciente = () => {
             </div>
           </div>
 
+          {/* --- DATOS CLÍNICOS --- */}
           {seccionAbierta === "datos" && (
             <div className="seccion seccion-datos">
               <div className="seccion-header">
@@ -415,7 +565,8 @@ const PerfilPaciente = () => {
                         ) : (
                           <input
                             type={
-                              campo.type === "date" || campo.type === "number"
+                              campo.type === "date" ||
+                              campo.type === "number"
                                 ? campo.type
                                 : "text"
                             }
@@ -445,6 +596,7 @@ const PerfilPaciente = () => {
             </div>
           )}
 
+          {/* --- TRATAMIENTO --- */}
           {seccionAbierta === "tratamiento" && (
             <div className="seccion seccion-tratamiento">
               <div className="seccion-header">
@@ -485,62 +637,37 @@ const PerfilPaciente = () => {
                         </p>
                         <ul>
                           {tratamientoActivo.medicamentosPlanificados.map(
-                            (m) => (
-                              <li key={m}>{m}</li>
+                            (m, idx) => (
+                              <li key={idx}>
+                                {m.nombre}
+                                {m.dosis && ` · ${m.dosis}`}
+                                {m.fechaPrimeraAplicacion &&
+                                  ` · ${formatFecha(
+                                    m.fechaPrimeraAplicacion
+                                  )}`}
+                                {m.horaAplicacion && ` · ${m.horaAplicacion}`}
+                                {m.duracionDias &&
+                                  ` · ${m.duracionDias} días`}
+                              </li>
                             )
                           )}
                         </ul>
                       </div>
                     )}
 
-                  <div className="bloque-medicamentos">
-                    {["fsh", "hmg", "antagonista", "viaOral"].map((tipo) => {
-                      const grupo = tratamientoActivo[tipo];
-                      if (!grupo) return null;
-                      const lista = Array.isArray(grupo) ? grupo : [grupo];
-                      return (
-                        <div key={tipo}>
-                          <h4>{tipo.toUpperCase()}</h4>
-                          {lista.map((med, idx) => (
-                            <div key={idx} className="card-medicamento">
-                              <p>
-                                <strong>Nombre:</strong> {med.medicamento}
-                              </p>
-                              <p>
-                                <strong>Dosis:</strong> {med.dosis}
-                              </p>
-                              <p>
-                                <strong>Hora:</strong> {med.hora}
-                              </p>
-                              <p>
-                                <strong>Días:</strong>{" "}
-                                {typeof med.duracion === "number"
-                                  ? med.duracion
-                                  : "-"}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-
                   <div style={{ marginTop: "20px" }}>
-                    <button
-                      onClick={() =>
-                        (window.location.href = `/detalle-tratamiento/${id}/activo`)
-                      }
-                    >
+                    <button onClick={() => navigate(`/tratamientos/${id}/activo`)}>
                       Ver detalle completo
                     </button>
                   </div>
                 </>
               ) : (
-                <p>No hay tratamiento activo para este paciente.</p>
+                <p>No hay tratamiento activo.</p>
               )}
             </div>
           )}
 
+          {/* --- EVOLUCION --- */}
           {seccionAbierta === "evolucion" && (
             <div className="seccion">
               <h3>Evolución diaria</h3>
@@ -564,9 +691,21 @@ const PerfilPaciente = () => {
             </div>
           )}
 
+          {/* --- ESTUDIOS --- */}
           {seccionAbierta === "estudios" && (
             <div className="seccion estudios">
-              <h3>Estudios clínicos</h3>
+              <div className="seccion-estudios-header">
+                <h3>Estudios clínicos</h3>
+                {tratamientoActivo && (
+                  <button
+                    className="btn-agregar-estudio"
+                    onClick={() => setMostrarModalEstudio(true)}
+                  >
+                    + Agregar estudio
+                  </button>
+                )}
+              </div>
+
               {estudios.length === 0 ? (
                 <p>No hay estudios cargados</p>
               ) : (
@@ -578,10 +717,39 @@ const PerfilPaciente = () => {
                       </p>
                       <p>
                         <strong>Tipo:</strong> {est.tipoEstudio}
+                        {est.subtipo ? ` · ${est.subtipo}` : ""}
                       </p>
-                      {est.foliculos && (
+
+                      {est.fsh && (
                         <p>
-                          <strong>Folículos:</strong> {est.foliculos}
+                          <strong>FSH:</strong> {est.fsh}
+                        </p>
+                      )}
+                      {est.lh && (
+                        <p>
+                          <strong>LH:</strong> {est.lh}
+                        </p>
+                      )}
+                      {est.estradiol && (
+                        <p>
+                          <strong>Estradiol:</strong> {est.estradiol}
+                        </p>
+                      )}
+                      {est.ham && (
+                        <p>
+                          <strong>HAM:</strong> {est.ham}
+                        </p>
+                      )}
+                      {est.progesterona && (
+                        <p>
+                          <strong>Progesterona:</strong> {est.progesterona}
+                        </p>
+                      )}
+
+                      {est.recuentoFolicular && (
+                        <p>
+                          <strong>Recuento folicular total:</strong>{" "}
+                          {est.recuentoFolicular}
                         </p>
                       )}
                       {est.ovarioDerecho && (
@@ -591,30 +759,17 @@ const PerfilPaciente = () => {
                       )}
                       {est.ovarioIzquierdo && (
                         <p>
-                          <strong>Ovario izquierdo:</strong> {est.ovarioIzquierdo}
+                          <strong>Ovario izquierdo:</strong>{" "}
+                          {est.ovarioIzquierdo}
                         </p>
                       )}
-                      {est.estradiol && (
+
+                      {est.comentarios && (
                         <p>
-                          <strong>Estradiol:</strong> {est.estradiol}
+                          <strong>Comentarios:</strong> {est.comentarios}
                         </p>
                       )}
-                      {est.progesterona && (
-                        <p>
-                          <strong>Progesterona:</strong> {est.progesterona}
-                        </p>
-                      )}
-                      {est.lh && (
-                        <p>
-                          <strong>LH:</strong> {est.lh}
-                        </p>
-                      )}
-                      {est.recuentoFolicular && (
-                        <p>
-                          <strong>Recuento folicular:</strong>{" "}
-                          {est.recuentoFolicular}
-                        </p>
-                      )}
+
                       <button onClick={() => eliminarEstudio(est.id)}>
                         Eliminar
                       </button>
@@ -625,6 +780,7 @@ const PerfilPaciente = () => {
             </div>
           )}
 
+          {/* CONFIRMAR CAMBIOS */}
           {mostrarModal && (
             <div className="modal-confirmacion">
               <div className="modal-contenido">
@@ -639,13 +795,11 @@ const PerfilPaciente = () => {
             </div>
           )}
 
+          {/* MODAL INICIO TRATAMIENTO */}
           {mostrarModalInicio && (
             <div className="modal-inicio-tratamiento">
               <div className="modal-inicio-contenido">
                 <h3>Iniciar tratamiento</h3>
-                <p className="modal-subtitle">
-                  Definí el tipo de tratamiento, fechas y medicación planificada.
-                </p>
 
                 <div className="form-group">
                   <label>
@@ -658,6 +812,7 @@ const PerfilPaciente = () => {
                     >
                       <option value="">Seleccionar...</option>
                       <option value="FIV">FIV</option>
+                      <option value="ICSI">ICSI</option>
                       <option value="CRIO DE OVULOS">CRIO DE OVULOS</option>
                       <option value="TRANSFERENCIA EMBRIONARIA">
                         TRANSFERENCIA EMBRIONARIA
@@ -677,7 +832,10 @@ const PerfilPaciente = () => {
                         type="date"
                         value={nuevoTratamiento.fum}
                         onChange={(e) =>
-                          handleChangeNuevoTratamiento("fum", e.target.value)
+                          handleChangeNuevoTratamiento(
+                            "fum",
+                            e.target.value
+                          )
                         }
                       />
                     </label>
@@ -699,29 +857,328 @@ const PerfilPaciente = () => {
                   </div>
                 </div>
 
+                {/* MEDICAMENTOS */}
                 <div className="form-group meds-group">
                   <span className="label-inline">
-                    Medicamentos planificados (opcionales)
+                    Medicamentos planificados
                   </span>
+
                   <div className="meds-checks">
-                    {MEDICAMENTOS_COMERCIALES.map((med) => (
-                      <label key={med} className="med-check">
-                        <input
-                          type="checkbox"
-                          checked={nuevoTratamiento.medicamentosPlanificados.includes(
-                            med
+                    {MEDICAMENTOS_COMERCIALES.map((med) => {
+                      const estado =
+                        nuevoTratamiento.medicamentosPlanificados[med];
+
+                      return (
+                        <div key={med} className="med-check">
+                          <label className="med-check-main">
+                            <input
+                              type="checkbox"
+                              checked={estado.selected}
+                              onChange={() => toggleMedicamentoPlanificado(med)}
+                            />
+                            <span>{med}</span>
+                          </label>
+
+                          {/* CAMPOS EXTRA SI ESTÁ ACTIVADO */}
+                          {estado.selected && (
+                            <div className="med-extra">
+                              <label>
+                                Fecha primera aplicación
+                                <input
+                                  type="date"
+                                  value={estado.fecha}
+                                  onChange={(e) =>
+                                    changeFechaMedicamento(med, e.target.value)
+                                  }
+                                />
+                              </label>
+
+                              <label>
+                                Hora de aplicación
+                                <input
+                                  type="time"
+                                  value={estado.hora}
+                                  onChange={(e) =>
+                                    changeHoraMedicamento(med, e.target.value)
+                                  }
+                                />
+                              </label>
+
+                              {/* 🔥 NUEVO CAMPO — DOSIS */}
+                              <label>
+                                Dosis
+                                <input
+                                  type="text"
+                                  placeholder="Ej: 75 UI"
+                                  value={estado.dosis}
+                                  onChange={(e) =>
+                                    changeDosisMedicamento(med, e.target.value)
+                                  }
+                                />
+                              </label>
+
+                              <label>
+                                Días de aplicación
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={estado.dias}
+                                  onChange={(e) =>
+                                    changeDiasMedicamento(med, e.target.value)
+                                  }
+                                />
+                              </label>
+                            </div>
                           )}
-                          onChange={() => toggleMedicamentoPlanificado(med)}
-                        />
-                        <span>{med}</span>
-                      </label>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="modal-botones">
                   <button onClick={crearTratamiento}>Confirmar</button>
-                  <button onClick={() => setMostrarModalInicio(false)}>
+                  <button
+                    onClick={() => {
+                      setMostrarModalInicio(false);
+                      setNuevoTratamiento(crearEstadoInicialTratamiento());
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL ESTUDIO */}
+          {mostrarModalEstudio && (
+            <div className="modal-estudio">
+              <div className="modal-estudio-contenido">
+                <h3>Agregar estudio</h3>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>
+                      Tipo de estudio
+                      <select
+                        value={nuevoEstudio.tipo}
+                        onChange={(e) =>
+                          handleChangeNuevoEstudio("tipo", e.target.value)
+                        }
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="analisis">Análisis</option>
+                        <option value="ecografia">Ecografía</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Fecha
+                      <input
+                        type="date"
+                        value={nuevoEstudio.fecha}
+                        onChange={(e) =>
+                          handleChangeNuevoEstudio("fecha", e.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* OPCIONES ANÁLISIS */}
+                {nuevoEstudio.tipo === "analisis" && (
+                  <>
+                    <div className="form-group">
+                      <label>
+                        Tipo de análisis
+                        <select
+                          value={nuevoEstudio.subtipo}
+                          onChange={(e) =>
+                            handleChangeNuevoEstudio("subtipo", e.target.value)
+                          }
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Previo al estímulo">
+                            Previo al estímulo
+                          </option>
+                          <option value="Laboratorio general">
+                            Laboratorio general
+                          </option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>
+                          FSH
+                          <input
+                            type="text"
+                            value={nuevoEstudio.fsh}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio("fsh", e.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="form-group">
+                        <label>
+                          LH
+                          <input
+                            type="text"
+                            value={nuevoEstudio.lh}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio("lh", e.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>
+                          Estradiol
+                          <input
+                            type="text"
+                            value={nuevoEstudio.estradiol}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio(
+                                "estradiol",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="form-group">
+                        <label>
+                          HAM
+                          <input
+                            type="text"
+                            value={nuevoEstudio.ham}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio("ham", e.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        Progesterona
+                        <input
+                          type="text"
+                          value={nuevoEstudio.progesterona}
+                          onChange={(e) =>
+                            handleChangeNuevoEstudio(
+                              "progesterona",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* OPCIONES ECOGRAFÍA */}
+                {nuevoEstudio.tipo === "ecografia" && (
+                  <>
+                    <div className="form-group">
+                      <label>
+                        Tipo de ecografía
+                        <select
+                          value={nuevoEstudio.subtipo}
+                          onChange={(e) =>
+                            handleChangeNuevoEstudio("subtipo", e.target.value)
+                          }
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Basal">Basal</option>
+                          <option value="En estimulación">En estimulación</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        Recuento folicular total
+                        <input
+                          type="text"
+                          value={nuevoEstudio.recuentoFolicular}
+                          onChange={(e) =>
+                            handleChangeNuevoEstudio(
+                              "recuentoFolicular",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>
+                          Ovario derecho
+                          <input
+                            type="text"
+                            value={nuevoEstudio.ovarioDerecho}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio(
+                                "ovarioDerecho",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="form-group">
+                        <label>
+                          Ovario izquierdo
+                          <input
+                            type="text"
+                            value={nuevoEstudio.ovarioIzquierdo}
+                            onChange={(e) =>
+                              handleChangeNuevoEstudio(
+                                "ovarioIzquierdo",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="form-group">
+                  <label>
+                    Comentarios
+                    <textarea
+                      value={nuevoEstudio.comentarios}
+                      onChange={(e) =>
+                        handleChangeNuevoEstudio("comentarios", e.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="modal-botones">
+                  <button onClick={guardarEstudio}>Guardar estudio</button>
+                  <button
+                    onClick={() => {
+                      setMostrarModalEstudio(false);
+                      setNuevoEstudio(crearEstadoInicialEstudio());
+                    }}
+                  >
                     Cancelar
                   </button>
                 </div>
@@ -730,7 +1187,7 @@ const PerfilPaciente = () => {
           )}
         </>
       ) : (
-        <p>Cargando datos del paciente...</p>
+        <p>Cargando datos...</p>
       )}
     </div>
   );
