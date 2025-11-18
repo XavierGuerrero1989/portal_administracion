@@ -16,8 +16,13 @@ const Tratamientos = () => {
 
       for (const docUsuario of usuariosSnap.docs) {
         const usuario = docUsuario.data();
-        const tratamientoActivoRef = collection(db, "usuarios", docUsuario.id, "tratamientos");
-        const subDocs = await getDocs(tratamientoActivoRef);
+        const tratamientosRef = collection(
+          db,
+          "usuarios",
+          docUsuario.id,
+          "tratamientos"
+        );
+        const subDocs = await getDocs(tratamientosRef);
 
         for (const subDoc of subDocs.docs) {
           const tratamiento = subDoc.data();
@@ -39,9 +44,47 @@ const Tratamientos = () => {
   }, []);
 
   const tratamientosFiltrados = tratamientos.filter((t) => {
-    const texto = `${t.nombre} ${t.apellido} ${t.dni} ${t.tipo} ${t.fechaInicio?.toDate?.().toLocaleDateString() || ""}`.toLowerCase();
+    const fechaTexto =
+      t.fechaInicio?.toDate?.().toLocaleDateString() || "";
+    const texto = `${t.nombre} ${t.apellido} ${t.dni} ${t.tipo} ${fechaTexto}`.toLowerCase();
     return texto.includes(busqueda.toLowerCase());
   });
+
+  // --- NUEVO: helper para obtener nombres de medicamentos de forma genérica ---
+  const obtenerNombresMedicamentos = (t) => {
+    const nombres = [];
+
+    // 1) medicamentosPlanificados (caso Salvador)
+    if (t.medicamentosPlanificados) {
+      const fuente = Array.isArray(t.medicamentosPlanificados)
+        ? t.medicamentosPlanificados
+        : [t.medicamentosPlanificados];
+
+      fuente.forEach((m) => {
+        if (!m || typeof m !== "object") return;
+        const nombre =
+          m.nombre || m.medicamento || m.nombreComercial || null;
+        if (nombre) nombres.push(nombre);
+      });
+    }
+
+    // 2) otros tipos: fsh, hmg, antagonista, viaOral (casos viejos y nuevos)
+    const tipos = ["fsh", "hmg", "antagonista", "viaOral"];
+    tipos.forEach((key) => {
+      const val = t[key];
+      if (!val) return;
+      const arr = Array.isArray(val) ? val : [val];
+
+      arr.forEach((m) => {
+        if (!m || typeof m !== "object") return;
+        const nombre =
+          m.nombre || m.medicamento || m.nombreComercial || null;
+        if (nombre) nombres.push(nombre);
+      });
+    });
+
+    return nombres.length ? nombres.join(" + ") : "-";
+  };
 
   return (
     <div className="tratamientos">
@@ -78,16 +121,26 @@ const Tratamientos = () => {
             ) : (
               tratamientosFiltrados.map((t, i) => (
                 <tr key={i}>
-                  <td>{t.nombre} {t.apellido}</td>
+                  <td>
+                    {t.nombre} {t.apellido}
+                  </td>
                   <td>{t.dni}</td>
                   <td>{t.tipo}</td>
-                  <td>{t.fechaInicio?.toDate?.().toLocaleDateString() || "-"}</td>
-                  <td>{t.estado || (t.tratamientoId === "activo" ? "Activo" : "Finalizado")}</td>
                   <td>
-                    {[t.fsh?.medicamento, t.hmg?.medicamento].filter(Boolean).join(" + ") || "-"}
+                    {t.fechaInicio?.toDate?.().toLocaleDateString() || "-"}
                   </td>
                   <td>
-                    <Link className="ver-detalle" to={`/tratamientos/${t.idUsuario}/${t.tratamientoId}`}>
+                    {t.estado ||
+                      (t.tratamientoId === "activo"
+                        ? "Activo"
+                        : "Finalizado")}
+                  </td>
+                  <td>{obtenerNombresMedicamentos(t)}</td>
+                  <td>
+                    <Link
+                      className="ver-detalle"
+                      to={`/tratamientos/${t.idUsuario}/${t.tratamientoId}`}
+                    >
                       <Eye size={16} /> Ver detalle
                     </Link>
                   </td>
