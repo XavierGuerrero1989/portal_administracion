@@ -139,18 +139,58 @@
         }
       }
 
-      .btn-extender {
+      /* Línea que muestra la suspensión del medicamento */
+      .evento-suspension {
         margin-top: 0.5rem;
-        background-color: #1976d2;
-        color: white;
-        border: none;
-        padding: 0.4rem 0.8rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 6px;
         font-size: 0.9rem;
-        cursor: pointer;
+        background-color: #ffebee;
+        color: #c62828;
 
-        &:hover {
-          background-color: #125ea5;
+        strong {
+          font-weight: 600;
+        }
+      }
+
+      /* Contenedor para botones Extender / Suspender */
+      .acciones-medicamento {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+
+        .btn-extender,
+        .btn-suspender {
+          border: none;
+          padding: 0.35rem 0.85rem;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+          white-space: nowrap;
+        }
+
+        .btn-extender {
+          background-color: #1976d2;
+          color: #fff;
+
+          &:hover {
+            background-color: #125ea5;
+          }
+        }
+
+        .btn-suspender {
+          background-color: #e53935;
+          color: #fff;
+
+          &:hover {
+            background-color: #c62828;
+          }
         }
       }
     }
@@ -206,6 +246,13 @@
         }
       }
 
+      /* Mensaje de advertencia del modal de suspensión / finalización */
+      .texto-advertencia {
+        font-size: 0.9rem;
+        color: #c62828;
+        margin-bottom: 1rem;
+      }
+
       .aplicar {
         width: 100%;
         background-color: #4caf50;
@@ -228,6 +275,15 @@
         &:disabled {
           background-color: #a5d6a7;
           cursor: not-allowed;
+        }
+      }
+
+      /* Versión roja del botón para confirmar suspensión / finalización */
+      .aplicar-suspension {
+        background-color: #e53935;
+
+        &:hover:not(:disabled) {
+          background-color: #c62828;
         }
       }
 
@@ -267,6 +323,10 @@
     align-items: center;
     gap: 8px;
     font-size: 0.95rem;
+
+    &:hover {
+      background-color: #b2ebf2;
+    }
   }
 
   .estudios-grid {
@@ -337,6 +397,42 @@
     }
   }
 
+  /* Footer con botón de FINALIZAR TRATAMIENTO */
+  .footer-finalizar {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .btn-finalizar-tratamiento {
+    background-color: #ff7043;
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s ease;
+
+    &:hover {
+      background-color: #f4511e;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+    }
+  }
+
   @media (max-width: 768px) {
     .cabecera-tratamiento {
       flex-direction: column;
@@ -344,6 +440,10 @@
 
     .card-estudio {
       width: 100%;
+    }
+
+    .footer-finalizar {
+      justify-content: center;
     }
   }
 }

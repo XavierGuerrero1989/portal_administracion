@@ -50,11 +50,29 @@ const Tratamientos = () => {
     return texto.includes(busqueda.toLowerCase());
   });
 
-  // --- NUEVO: helper para obtener nombres de medicamentos de forma genérica ---
+  // Helper para mostrar el estado con texto prolijo
+  const getEstadoTexto = (t) => {
+    const estado = t.estado;
+
+    if (estado === "activo") return "Tratamiento activo";
+    if (estado === "finalizado") return "Tratamiento finalizado";
+
+    // Compatibilidad legacy: si no tiene campo estado
+    if (!estado) {
+      if (t.tratamientoId === "activo") return "Tratamiento activo";
+      // Para cualquier otro ID sin estado, lo consideramos finalizado
+      return "Tratamiento finalizado";
+    }
+
+    // Fallback por si aparece algo raro
+    return estado;
+  };
+
+  // --- Helper para obtener nombres de medicamentos de forma genérica ---
   const obtenerNombresMedicamentos = (t) => {
     const nombres = [];
 
-    // 1) medicamentosPlanificados (caso Salvador)
+    // 1) medicamentosPlanificados
     if (t.medicamentosPlanificados) {
       const fuente = Array.isArray(t.medicamentosPlanificados)
         ? t.medicamentosPlanificados
@@ -68,7 +86,7 @@ const Tratamientos = () => {
       });
     }
 
-    // 2) otros tipos: fsh, hmg, antagonista, viaOral (casos viejos y nuevos)
+    // 2) otros tipos: fsh, hmg, antagonista, viaOral
     const tipos = ["fsh", "hmg", "antagonista", "viaOral"];
     tipos.forEach((key) => {
       const val = t[key];
@@ -129,12 +147,7 @@ const Tratamientos = () => {
                   <td>
                     {t.fechaInicio?.toDate?.().toLocaleDateString() || "-"}
                   </td>
-                  <td>
-                    {t.estado ||
-                      (t.tratamientoId === "activo"
-                        ? "Activo"
-                        : "Finalizado")}
-                  </td>
+                  <td>{getEstadoTexto(t)}</td>
                   <td>{obtenerNombresMedicamentos(t)}</td>
                   <td>
                     <Link

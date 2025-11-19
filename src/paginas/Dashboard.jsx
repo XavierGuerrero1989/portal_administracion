@@ -22,6 +22,10 @@ const Dashboard = () => {
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [usuariosDocs, setUsuariosDocs] = useState([]);
 
+  // Lista detallada de tratamientos finalizados este mes
+  const [tratamientosFinalizadosLista, setTratamientosFinalizadosLista] =
+    useState([]);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,6 +42,7 @@ const Dashboard = () => {
         let finalizadosMes = 0;
         let activos = 0;
         let drogas = {};
+        const detallesFinalizados = [];
 
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
@@ -46,14 +51,18 @@ const Dashboard = () => {
 
         for (const userDoc of pacientesDocs) {
           const userRef = doc(db, "usuarios", userDoc.id);
+          const userData = userDoc.data();
+
           const tratamientosSnapshot = await getDocs(
             collection(userRef, "tratamientos")
           );
 
+          let tieneTratamientoActivo = false;
+
           tratamientosSnapshot.forEach((trat) => {
             const data = trat.data();
 
-            // Fecha de inicio del tratamiento (si existe)
+            // Fecha de inicio del tratamiento
             let fechaInicioTrat = null;
             if (data.fechaInicio) {
               if (data.fechaInicio?.seconds) {
@@ -74,36 +83,52 @@ const Dashboard = () => {
               }
             }
 
-            /** 2) TRATAMIENTOS FINALIZADOS MES */
+            /** 2) TRATAMIENTOS FINALIZADOS MES (conteo + detalle) */
             if (data.fechaFin) {
               const fechaFin = data.fechaFin?.seconds
                 ? new Date(data.fechaFin.seconds * 1000)
                 : new Date(data.fechaFin);
 
+              const estado = data.estado;
+              const esFinalizadoValido =
+                (estado === "finalizado" || !estado) && !isNaN(fechaFin.getTime());
+
               if (
-                !isNaN(fechaFin.getTime()) &&
+                esFinalizadoValido &&
                 fechaFin.getMonth() === mesActual &&
                 fechaFin.getFullYear() === añoActual
               ) {
                 finalizadosMes++;
+
+                detallesFinalizados.push({
+                  pacienteId: userDoc.id,
+                  tratamientoId: trat.id,
+                  nombre: userData.nombre || "",
+                  apellido: userData.apellido || "",
+                  dni: userData.dni || "",
+                  tipo: data.tipo || "-",
+                  fechaInicio: fechaInicioTrat,
+                  fechaFin,
+                  // 👉 Campos de finalización
+                  tipoFinalizacion: data.tipoFinalizacion || null,
+                  motivoCancelacion: data.motivoCancelacion || null,
+                  comentarioFinalizacion: data.comentarioFinalizacion || null,
+                });
               }
             }
 
             /** 3) PACIENTES ACTIVOS */
-            const esActivo =
-              data.activo === true ||
-              data.estado === "activo" ||
-              data.estado === "Activo" ||
-              trat.id === "activo";
+            const estado = data.estado;
+            const esTratamientoActivo =
+              estado === "activo" ||
+              estado === "Activo" ||
+              (!estado && (data.activo === true || trat.id === "activo"));
 
-            if (esActivo) {
-              activos++;
+            if (esTratamientoActivo) {
+              tieneTratamientoActivo = true;
             }
 
-            /** 4) CANTIDAD DE CADA DROGA USADA ESTE MES
-             *    (aprox: dosis x días para tratamientos que inician este mes)
-             */
-
+            /** 4) DROGAS USADAS (sin tocar, cuenta aunque esté finalizado) */
             const acumularDroga = (med) => {
               if (!med || typeof med !== "object") return;
               const nombreDroga =
@@ -128,7 +153,6 @@ const Dashboard = () => {
               }
             };
 
-            // medicamentosPlanificados (caso Salvador)
             if (data.medicamentosPlanificados) {
               const fuente = Array.isArray(data.medicamentosPlanificados)
                 ? data.medicamentosPlanificados
@@ -136,7 +160,6 @@ const Dashboard = () => {
               fuente.forEach(acumularDroga);
             }
 
-            // Otros tipos (fsh, hmg, antagonista, viaOral)
             ["fsh", "hmg", "antagonista", "viaOral"].forEach((key) => {
               const val = data[key];
               if (!val) return;
@@ -144,12 +167,17 @@ const Dashboard = () => {
               arr.forEach(acumularDroga);
             });
           });
+
+          if (tieneTratamientoActivo) {
+            activos++;
+          }
         }
 
         setTratamientosIniciados(iniciadosMes);
         setTratamientosFinalizados(finalizadosMes);
         setPacientesActivos(activos);
         setDrogaStats(drogas);
+        setTratamientosFinalizadosLista(detallesFinalizados);
       } catch (error) {
         console.error("Error cargando dashboard:", error);
       } finally {
@@ -162,10 +190,41 @@ const Dashboard = () => {
 
   if (loading) return <Loader />;
 
-  // --- helpers derivados de drogaStats para la vista dinámica ---
-  const drogasArray = Object.entries(drogaStats); // [ [nombre, totalUI], ... ]
-  const totalUI = drogasArray.reduce((acc, [, total]) => acc + (Number(total) || 0), 0);
-  const drogasOrdenadas = [...drogasArray].sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0));
+  // helpers drogas
+  const drogasArray = Object.entries(drogaStats);
+  const totalUI = drogasArray.reduce(
+    (acc, [, total]) => acc + (Number(total) || 0),
+    0
+  );
+  const drogasOrdenadas = [...drogasArray].sort(
+    (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
+  );
+
+  const formatearFecha = (d) => {
+    if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString();
+  };
+
+  const formatearFinalizacion = (t) => {
+    const tipo = (t.tipoFinalizacion || "").toLowerCase();
+
+    if (!tipo) return "-";
+
+    if (tipo === "puncion" || tipo === "punción") {
+      return "Punción";
+    }
+
+    if (tipo === "cancelacion" || tipo === "cancelación") {
+      let texto = "Cancelación de estímulo";
+      if (t.motivoCancelacion) {
+        texto += ` – ${t.motivoCancelacion}`;
+      }
+      return texto;
+    }
+
+    // fallback genérico por si aparece algo nuevo
+    return t.tipoFinalizacion;
+  };
 
   return (
     <div className="dashboard">
@@ -212,9 +271,67 @@ const Dashboard = () => {
             <p>
               Total: <strong>{tratamientosFinalizados}</strong>
             </p>
-            <p style={{ fontSize: "0.9rem", color: "#666" }}>
-              (Más adelante podemos listar cada tratamiento aquí.)
-            </p>
+
+            {tratamientosFinalizadosLista.length === 0 ? (
+              <p style={{ fontSize: "0.9rem", color: "#666", marginTop: "0.5rem" }}>
+                No hay tratamientos finalizados en este mes.
+              </p>
+            ) : (
+              <div className="tabla-mini">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Paciente</th>
+                      <th>DNI</th>
+                      <th>Tipo</th>
+                      <th>Inicio</th>
+                      <th>Fin</th>
+                      <th>Finalización</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tratamientosFinalizadosLista.map((t, idx) => (
+                      <tr key={`${t.pacienteId}-${t.tratamientoId}-${idx}`}>
+                        <td>
+                          {t.nombre} {t.apellido}
+                        </td>
+                        <td>{t.dni}</td>
+                        <td>{t.tipo}</td>
+                        <td>{formatearFecha(t.fechaInicio)}</td>
+                        <td>{formatearFecha(t.fechaFin)}</td>
+                        <td>
+                          <div>{formatearFinalizacion(t)}</div>
+                          {t.comentarioFinalizacion && (
+                            <div
+                              style={{
+                                fontSize: "0.75rem",
+                                color: "#6b7280",
+                                marginTop: "2px",
+                              }}
+                            >
+                              {t.comentarioFinalizacion}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className="btn-link"
+                            onClick={() =>
+                              navigate(
+                                `/tratamientos/${t.pacienteId}/${t.tratamientoId}`
+                              )
+                            }
+                          >
+                            Ver detalle
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -251,7 +368,9 @@ const Dashboard = () => {
                   {drogasOrdenadas.map(([nombre, total]) => {
                     const cantidad = Number(total) || 0;
                     const porcentaje =
-                      totalUI > 0 ? ((cantidad / totalUI) * 100).toFixed(1) : 0;
+                      totalUI > 0
+                        ? ((cantidad / totalUI) * 100).toFixed(1)
+                        : 0;
 
                     return (
                       <div key={nombre} className="droga-item">

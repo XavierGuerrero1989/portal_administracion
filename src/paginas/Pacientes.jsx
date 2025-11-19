@@ -2,14 +2,7 @@
 import "./Pacientes.scss";
 
 import React, { useEffect, useState } from "react";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  limit,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Link, useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import ConfirmModal from "../componentes/ConfirmModal";
@@ -32,37 +25,40 @@ const Pacientes = () => {
         querySnapshot.docs.map(async (docSnap) => {
           const paciente = { id: docSnap.id, ...docSnap.data() };
 
-          // Estado por defecto
           let estado = "sin-tratamiento";
 
-          // 1) ¿Tiene tratamiento activo?
-          const tratamientoRef = doc(
+          // Leemos TODOS los tratamientos del paciente
+          const tratamientosRef = collection(
             db,
             "usuarios",
             paciente.id,
-            "tratamientos",
-            "activo"
+            "tratamientos"
           );
-          const tratamientoSnap = await getDoc(tratamientoRef);
+          const tratamientosSnap = await getDocs(tratamientosRef);
 
-          if (tratamientoSnap.exists()) {
-            estado = "activo";
-          } else {
-            // 2) Si no hay activo, revisamos si tiene alguno finalizado en la colección histórica
-            //    Cambiá "tratamientos_finalizados" si usás otro nombre para esa colección
-            const finalizadosRef = collection(
-              db,
-              "usuarios",
-              paciente.id,
-              "tratamientos_finalizados"
-            );
-            const finalizadosSnap = await getDocs(
-              query(finalizadosRef, limit(1))
-            );
+          let tieneActivo = false;
+          let tieneFinalizado = false;
 
-            if (!finalizadosSnap.empty) {
-              estado = "finalizado";
+          tratamientosSnap.forEach((t) => {
+            const dataT = t.data();
+            const estadoT = dataT.estado;
+
+            // Compatibilidad: si el doc se llama "activo" pero no tiene campo estado
+            if (!estadoT && t.id === "activo") {
+              tieneActivo = true;
+              return;
             }
+
+            if (estadoT === "activo") tieneActivo = true;
+            if (estadoT === "finalizado") tieneFinalizado = true;
+          });
+
+          if (tieneActivo) {
+            estado = "activo";
+          } else if (tieneFinalizado) {
+            estado = "finalizado";
+          } else {
+            estado = "sin-tratamiento";
           }
 
           return { ...paciente, estado };
@@ -225,8 +221,19 @@ const Pacientes = () => {
 
 const calcularEdad = (fechaNac) => {
   if (!fechaNac) return "-";
+
+  let nac;
+
+  // Soporta Timestamp de Firestore o string/Date
+  if (typeof fechaNac.toDate === "function") {
+    nac = fechaNac.toDate();
+  } else {
+    nac = new Date(fechaNac);
+  }
+
+  if (isNaN(nac.getTime())) return "-";
+
   const hoy = new Date();
-  const nac = new Date(fechaNac);
   let edad = hoy.getFullYear() - nac.getFullYear();
   const m = hoy.getMonth() - nac.getMonth();
   if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;

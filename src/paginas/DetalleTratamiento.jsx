@@ -14,6 +14,8 @@ import {
   updateDoc,
   arrayUnion,
   deleteDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
@@ -39,6 +41,41 @@ const OPCIONES_DIAGNOSTICO = [
   "Anovulación crónica",
   "Preservación de fertilidad",
 ];
+
+// Tipos de finalización de tratamiento
+const TIPOS_FINALIZACION = [
+  { value: "puncion", label: "Punción" },
+  { value: "cancelacion_estimulo", label: "Cancelación de estímulo" },
+];
+
+// Motivos de cancelación del estímulo
+const MOTIVOS_CANCELACION = [
+  {
+    value: "error_paciente",
+    label: "Error de la paciente (omisión / aplicación incorrecta)",
+  },
+  {
+    value: "enfermedad_intercurrente",
+    label: "Enfermedad intercurrente",
+  },
+  {
+    value: "mala_respuesta_ovarica",
+    label: "Mala respuesta ovárica",
+  },
+  {
+    value: "decision_compartida",
+    label: "Decisión paciente / equipo médico",
+  },
+  {
+    value: "otro",
+    label: "Otro motivo",
+  },
+];
+
+const getLabelMotivoCancelacion = (value) => {
+  const found = MOTIVOS_CANCELACION.find((m) => m.value === value);
+  return found ? found.label : value;
+};
 
 // Etiquetas más legibles para tipos de medicamento
 const getLabelTipoMedicamento = (key) => {
@@ -99,7 +136,6 @@ const DetalleTratamiento = () => {
 
   // Agregar nuevo medicamento
   const [modalAgregarVisible, setModalAgregarVisible] = useState(false);
-  const [nuevoTipo, setNuevoTipo] = useState("");
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoDosis, setNuevoDosis] = useState("");
   const [nuevoHora, setNuevoHora] = useState("");
@@ -126,9 +162,20 @@ const DetalleTratamiento = () => {
   // Modal diagnóstico
   const [modalDiagnosticoVisible, setModalDiagnosticoVisible] =
     useState(false);
-  const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] = useState("");
+  const [diagnosticoSeleccionado, setDiagnosticoSeleccionado] =
+    useState("");
 
-  const esActivo = idTratamiento === "activo";
+  // Suspender medicamento
+  const [modalSuspenderVisible, setModalSuspenderVisible] = useState(false);
+  const [medSuspenderClave, setMedSuspenderClave] = useState("");
+  const [fechaSuspension, setFechaSuspension] = useState("");
+
+  // Finalizar tratamiento
+  const [modalFinalizarVisible, setModalFinalizarVisible] = useState(false);
+  const [tipoFinalizacion, setTipoFinalizacion] = useState("");
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [comentarioFinalizacion, setComentarioFinalizacion] = useState("");
+  const [guardandoFinalizacion, setGuardandoFinalizacion] = useState(false);
 
   // Helpers
   const parseFecha = (f) => {
@@ -224,39 +271,53 @@ const DetalleTratamiento = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idUsuario, idTratamiento]);
 
-  // Tipos de medicamento definidos en el tratamiento
-  const tiposMedicamento = tratamiento
-    ? Object.keys(tratamiento).filter((key) => {
-        if (["tipo", "fechaInicio", "estado", "diagnostico"].includes(key))
-          return false;
-        const val = tratamiento[key];
-        return (
-          val &&
-          typeof val === "object" &&
-          (Array.isArray(val) || val.medicamento || val.nombre)
-        );
-      })
+  // Tipos de medicamento definidos en el tratamiento:
+  // ahora solo usamos "medicamentosPlanificados"
+  const tiposMedicamento = tratamiento?.medicamentosPlanificados
+    ? ["medicamentosPlanificados"]
     : [];
+
+  // Estado del tratamiento:
+  // - Solo puede estar activo si el idTratamiento es "activo" y no tiene estado "finalizado".
+  const esFinalizado =
+    tratamiento?.estado === "finalizado" || idTratamiento !== "activo";
+  const esActivo = !esFinalizado;
 
   // Acordeón
   const toggleAccordion = (key) =>
     setMedsAbiertos((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const renderEstado = (confirmada) => (
-    <span className="estado-confirmacion">
-      {confirmada ? (
-        <>
-          <CheckCircle size={16} color="#4caf50" />
-          <span> Confirmada</span>
-        </>
-      ) : (
-        <>
-          <XCircle size={16} color="#e53935" />
-          <span> Sin confirmar</span>
-        </>
-      )}
-    </span>
-  );
+  const renderEstado = (confirmada, estado) => {
+    if (estado === "cancelada" || estado === "cancelada_por_finalizacion") {
+      return (
+        <span className="estado-confirmacion" style={{ color: "#c62828" }}>
+          <XCircle size={16} />
+          <span>
+            {" "}
+            {estado === "cancelada_por_finalizacion"
+              ? "Cancelada por finalización"
+              : "Cancelada"}
+          </span>
+        </span>
+      );
+    }
+
+    return (
+      <span className="estado-confirmacion">
+        {confirmada ? (
+          <>
+            <CheckCircle size={16} color="#4caf50" />
+            <span> Confirmada</span>
+          </>
+        ) : (
+          <>
+            <XCircle size={16} color="#e53935" />
+            <span> Sin confirmar</span>
+          </>
+        )}
+      </span>
+    );
+  };
 
   // Abrir modal para extender medicamento
   const abrirModal = (clave) => {
@@ -283,6 +344,27 @@ const DetalleTratamiento = () => {
     setHora(horaMed);
     setModalVisible(true);
     setMensajeExito("");
+  };
+
+  // Abrir modal para suspender medicamento
+  const abrirModalSuspender = (clave) => {
+    setMedSuspenderClave(clave);
+    const hoy = new Date().toISOString().slice(0, 10);
+    setFechaSuspension(hoy);
+    setModalSuspenderVisible(true);
+  };
+
+  // Abrir modal para finalizar tratamiento
+  const abrirModalFinalizar = () => {
+    setTipoFinalizacion("");
+    setMotivoCancelacion("");
+    setComentarioFinalizacion("");
+    setModalFinalizarVisible(true);
+  };
+
+  const cerrarModalFinalizar = () => {
+    if (guardandoFinalizacion) return;
+    setModalFinalizarVisible(false);
   };
 
   // Aplicar extensión (crea NOTIS FORMATO VIEJO)
@@ -373,10 +455,9 @@ const DetalleTratamiento = () => {
     setMensajeExito("Extensión aplicada y notificaciones generadas ✔");
   };
 
-  // Crear nuevo medicamento (usa duracionDias y notificaciones formato viejo)
+  // Crear nuevo medicamento (solo medicamentosPlanificados)
   const confirmarNuevoMedicamento = async () => {
-    if (!nuevoTipo || !nuevoNombre || !nuevoDosis || !nuevoHora || !nuevoDias)
-      return;
+    if (!nuevoNombre || !nuevoDosis || !nuevoHora || !nuevoDias) return;
     if (!tratamiento) return;
 
     setGuardandoNuevo(true);
@@ -397,19 +478,16 @@ const DetalleTratamiento = () => {
       "tratamientos",
       idTratamiento
     );
-    const tipoActual = tratamiento[nuevoTipo];
 
-    if (!tipoActual) {
+    const actual = tratamiento.medicamentosPlanificados;
+
+    if (!actual) {
       await updateDoc(tratamientoRef, {
-        [nuevoTipo]: [nuevaData],
-      });
-    } else if (Array.isArray(tipoActual)) {
-      await updateDoc(tratamientoRef, {
-        [nuevoTipo]: arrayUnion(nuevaData),
+        medicamentosPlanificados: [nuevaData],
       });
     } else {
       await updateDoc(tratamientoRef, {
-        [nuevoTipo]: [tipoActual, nuevaData],
+        medicamentosPlanificados: arrayUnion(nuevaData),
       });
     }
 
@@ -474,7 +552,7 @@ const DetalleTratamiento = () => {
     await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
       tipo: "agregado",
       titulo: "Nuevo medicamento agregado",
-      descripcion: `${nuevoTipo.toUpperCase()} - ${nuevoNombre} – Dosis: ${nuevoDosis} – Hora: ${nuevoHora} – Días: ${nuevoDias}`,
+      descripcion: `${nuevoNombre} – Dosis: ${nuevoDosis} – Hora: ${nuevoHora} – Días: ${nuevoDias}`,
       fecha: serverTimestamp(),
       autor: "Profesional",
     });
@@ -485,7 +563,6 @@ const DetalleTratamiento = () => {
 
     setTimeout(() => {
       setModalAgregarVisible(false);
-      setNuevoTipo("");
       setNuevoNombre("");
       setNuevoDosis("");
       setNuevoHora("");
@@ -582,6 +659,316 @@ const DetalleTratamiento = () => {
     );
 
     setModalDiagnosticoVisible(false);
+  };
+
+  const confirmarSuspensionMedicamento = async () => {
+    if (!medSuspenderClave || !fechaSuspension || !tratamiento) return;
+
+    const [tipo, indexStr] = medSuspenderClave.split("-");
+    const index = parseInt(indexStr, 10);
+
+    const fuente = tratamiento[tipo];
+    if (!fuente) return;
+
+    const arreglo = Array.isArray(fuente) ? [...fuente] : [fuente];
+    const datos = arreglo[index];
+    if (!datos) return;
+
+    const fechaSusp = Timestamp.fromDate(new Date(fechaSuspension));
+
+    const actualizado = {
+      ...datos,
+      suspendidoEn: fechaSusp,
+    };
+
+    arreglo[index] = actualizado;
+
+    const tratamientoRef = doc(
+      db,
+      "usuarios",
+      idUsuario,
+      "tratamientos",
+      idTratamiento
+    );
+
+    await updateDoc(tratamientoRef, {
+      [tipo]: Array.isArray(fuente) ? arreglo : actualizado,
+    });
+
+    const nombreMed =
+      datos.nombre || datos.medicamento || datos.nombreComercial || "Medicamento";
+
+    // 👉 Cancelar notificaciones futuras de este medicamento
+    const fechaSuspDate = new Date(fechaSuspension);
+    fechaSuspDate.setHours(0, 0, 0, 0);
+
+    const futuras = notificaciones.filter((n) => {
+      const medNoti =
+        (typeof n.medicamento === "string" && n.medicamento) ||
+        (typeof n.nombre === "string" && n.nombre) ||
+        (typeof n.nombreMedicamento === "string" && n.nombreMedicamento) ||
+        "";
+      if (!medNoti) return false;
+
+      if (medNoti.trim().toLowerCase() !== nombreMed.trim().toLowerCase()) {
+        return false;
+      }
+
+      const d = parseFecha(n.fechaHoraProgramada || n.fecha);
+      if (!d) return false;
+
+      return d >= fechaSuspDate && n.estado !== "cancelada";
+    });
+
+    if (futuras.length > 0) {
+      await Promise.all(
+        futuras.map((n) =>
+          updateDoc(
+            doc(db, "usuarios", idUsuario, "notificaciones", n.id),
+            { estado: "cancelada" }
+          )
+        )
+      );
+
+      setNotificaciones((prev) =>
+        prev.map((n) =>
+          futuras.find((f) => f.id === n.id)
+            ? { ...n, estado: "cancelada" }
+            : n
+        )
+      );
+    }
+
+    await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+      tipo: "suspension",
+      titulo: "Medicamento suspendido",
+      descripcion: `${getLabelTipoMedicamento(tipo)} - ${nombreMed} suspendido el ${fechaSuspension}`,
+      fecha: serverTimestamp(),
+      autor: "Profesional",
+    });
+
+    setTratamiento((prev) => {
+      if (!prev) return prev;
+
+      const prevFuente = prev[tipo];
+      if (!prevFuente) return prev;
+
+      const prevArray = Array.isArray(prevFuente) ? [...prevFuente] : [prevFuente];
+      prevArray[index] = actualizado;
+
+      return {
+        ...prev,
+        [tipo]: Array.isArray(prevFuente) ? prevArray : actualizado,
+      };
+    });
+
+    setModalSuspenderVisible(false);
+    setMedSuspenderClave("");
+  };
+
+  // Finalizar tratamiento
+  const validarFinalizacion = () => {
+    if (!tipoFinalizacion) {
+      alert(
+        "Debes seleccionar el tipo de finalización (Punción o Cancelación de estímulo)."
+      );
+      return false;
+    }
+
+    if (tipoFinalizacion === "cancelacion_estimulo" && !motivoCancelacion) {
+      alert("Debes seleccionar el motivo de cancelación del estímulo.");
+      return false;
+    }
+
+    if (
+      tipoFinalizacion === "cancelacion_estimulo" &&
+      motivoCancelacion === "otro" &&
+      !comentarioFinalizacion.trim()
+    ) {
+      const confirma = window.confirm(
+        "Seleccionaste 'Otro motivo' sin detallar comentarios. ¿Deseás continuar igualmente?"
+      );
+      if (!confirma) return false;
+    }
+
+    return true;
+  };
+
+  const confirmarFinalizacionTratamiento = async () => {
+    if (!tratamiento) return;
+    if (!validarFinalizacion()) return;
+
+    const confirma = window.confirm(
+      "¿Estás seguro de que querés finalizar este tratamiento? Esta acción no se puede deshacer."
+    );
+    if (!confirma) return;
+
+    try {
+      setGuardandoFinalizacion(true);
+
+      const tratamientoRef = doc(
+        db,
+        "usuarios",
+        idUsuario,
+        "tratamientos",
+        idTratamiento
+      );
+      const tratSnap = await getDoc(tratamientoRef);
+      if (!tratSnap.exists()) {
+        alert("El tratamiento ya no existe.");
+        setGuardandoFinalizacion(false);
+        return;
+      }
+
+      const dataActual = tratSnap.data();
+      const ahora = new Date();
+
+      const payloadUpdate = {
+        estado: "finalizado",
+        fechaFin: serverTimestamp(),
+        tipoFinalizacion,
+        motivoCancelacion:
+          tipoFinalizacion === "cancelacion_estimulo"
+            ? motivoCancelacion
+            : null,
+        comentarioFinalizacion:
+          comentarioFinalizacion.trim() ||
+          dataActual.comentarioFinalizacion ||
+          null,
+      };
+
+      // 1) Actualizar tratamiento
+      await updateDoc(tratamientoRef, payloadUpdate);
+
+      // 2) Registrar en tratamientos_historicos_global (stats)
+      try {
+        const medicamentosPlanificados =
+          dataActual.medicamentosPlanificados || [];
+        const nombresMedicamentos = Array.isArray(medicamentosPlanificados)
+          ? [
+              ...new Set(
+                medicamentosPlanificados
+                  .map(
+                    (m) =>
+                      m.nombreComercial || m.nombre || m.medicamento || ""
+                  )
+                  .filter(Boolean)
+              ),
+            ]
+          : [];
+
+        await addDoc(collection(db, "tratamientos_historicos_global"), {
+          usuarioId: idUsuario,
+          tratamientoId: idTratamiento,
+          tipo: dataActual.tipo || null,
+          fechaInicio: dataActual.fechaInicio || null,
+          fechaFin: serverTimestamp(),
+          medicamentosUsados: nombresMedicamentos,
+          tipoFinalizacion,
+          motivoCancelacion:
+            tipoFinalizacion === "cancelacion_estimulo"
+              ? motivoCancelacion
+              : null,
+          comentarioFinalizacion:
+            comentarioFinalizacion.trim() ||
+            dataActual.comentarioFinalizacion ||
+            null,
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn(
+          "No se pudo registrar en tratamientos_historicos_global:",
+          e
+        );
+      }
+
+      // 3) Cancelar notificaciones del tratamiento
+      try {
+        const notisRef = collection(
+          db,
+          "usuarios",
+          idUsuario,
+          "notificaciones"
+        );
+        const qNotis = query(
+          notisRef,
+          where("tratamientoId", "==", idTratamiento)
+        );
+        const notisSnap = await getDocs(qNotis);
+        const updates = [];
+
+        notisSnap.forEach((docSnap) => {
+          const dataN = docSnap.data();
+          if (
+            dataN.estado !== "cancelada" &&
+            dataN.estado !== "cancelada_por_finalizacion"
+          ) {
+            updates.push(
+              updateDoc(docSnap.ref, {
+                estado: "cancelada_por_finalizacion",
+              })
+            );
+          }
+        });
+
+        if (updates.length > 0) {
+          await Promise.all(updates);
+        }
+      } catch (e) {
+        console.warn(
+          "Error al cancelar notificaciones del tratamiento finalizado:",
+          e
+        );
+      }
+
+      // 4) Registrar en historial del usuario
+      try {
+        let desc = "";
+        if (tipoFinalizacion === "puncion") {
+          desc = "Finalización de tratamiento por punción.";
+        } else if (tipoFinalizacion === "cancelacion_estimulo") {
+          desc = `Cancelación de estímulo – Motivo: ${getLabelMotivoCancelacion(
+            motivoCancelacion
+          )}.`;
+        }
+        if (comentarioFinalizacion.trim()) {
+          desc += ` Comentario: ${comentarioFinalizacion.trim()}`;
+        }
+
+        await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+          tipo: "finalizacion_tratamiento",
+          titulo: "Tratamiento finalizado",
+          descripcion: desc || "Tratamiento finalizado.",
+          fecha: serverTimestamp(),
+          autor: "Profesional",
+        });
+      } catch (e) {
+        console.warn("No se pudo registrar la finalización en historial:", e);
+      }
+
+      // Actualizar estado local
+      setTratamiento((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...payloadUpdate,
+              fechaFin: ahora,
+            }
+          : prev
+      );
+
+      setModalFinalizarVisible(false);
+      alert(
+        "Tratamiento finalizado correctamente. Ahora podrás iniciar uno nuevo si lo necesitás."
+      );
+    } catch (e) {
+      console.error("Error al finalizar tratamiento:", e);
+      alert(
+        "Hubo un problema al finalizar el tratamiento. Por favor, intenta nuevamente."
+      );
+    } finally {
+      setGuardandoFinalizacion(false);
+    }
   };
 
   return (
@@ -787,19 +1174,47 @@ const DetalleTratamiento = () => {
                           <li key={i}>
                             {getFechaNotificacion(ev)} –{" "}
                             {renderEstado(
-                              ev.confirmada ?? ev.estado === "confirmado"
+                              ev.confirmada ?? ev.estado === "confirmado",
+                              ev.estado
                             )}
                           </li>
                         ))}
                     </ul>
 
+                    {/* Línea de suspensión, si existe */}
+                    {datos.suspendidoEn && (
+                      <p className="evento-suspension">
+                        <strong>Suspensión:</strong>{" "}
+                        {parseFecha(datos.suspendidoEn)?.toLocaleDateString() ||
+                          "-"}{" "}
+                        – Este medicamento fue suspendido.
+                      </p>
+                    )}
+
                     {esActivo && (
-                      <button
-                        className="btn-extender"
-                        onClick={() => abrirModal(`${tipo}-${index}`)}
-                      >
-                        Extender
-                      </button>
+                      <div className="acciones-medicamento">
+                        {!datos.suspendidoEn ? (
+                          <>
+                            <button
+                              className="btn-extender"
+                              onClick={() => abrirModal(key)}
+                            >
+                              Extender
+                            </button>
+
+                            <button
+                              className="btn-suspender"
+                              onClick={() => abrirModalSuspender(key)}
+                            >
+                              Suspender medicamento
+                            </button>
+                          </>
+                        ) : (
+                          <p style={{ color: "#c62828", fontWeight: 600 }}>
+                            Este medicamento está suspendido
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -871,56 +1286,18 @@ const DetalleTratamiento = () => {
             <h4>Agregar nuevo medicamento</h4>
 
             <label>
-              Tipo:
+              Nombre comercial:
               <select
-                value={nuevoTipo}
-                onChange={(e) => setNuevoTipo(e.target.value)}
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
               >
                 <option value="">Seleccionar</option>
-                <option value="fsh">FSH</option>
-                <option value="hmg">HMG</option>
-                <option value="antagonista">Antagonista</option>
-                <option value="viaOral">Vía Oral</option>
+                <option value="Gonal">Gonal</option>
+                <option value="Pergoveris">Pergoveris</option>
+                <option value="Cetrotide">Cetrotide</option>
+                <option value="Crinone">Crinone</option>
               </select>
             </label>
-
-            {nuevoTipo && (
-              <label>
-                Nombre comercial:
-                <select
-                  value={nuevoNombre}
-                  onChange={(e) => setNuevoNombre(e.target.value)}
-                >
-                  <option value="">Seleccionar</option>
-                  {nuevoTipo === "fsh" &&
-                    ["Elonva", "Gonal", "Folitime", "Puregon", "Rekovelle"].map(
-                      (m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      )
-                    )}
-                  {nuevoTipo === "hmg" &&
-                    ["Menopur", "Pergoveris", "Life Cell"].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  {nuevoTipo === "antagonista" &&
-                    ["Cetrotide", "Orgalutran"].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  {nuevoTipo === "viaOral" &&
-                    ["Clomifeno", "Letrozol"].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            )}
 
             <label>
               Dosis:
@@ -992,6 +1369,42 @@ const DetalleTratamiento = () => {
 
             <button className="aplicar" onClick={guardarDiagnostico}>
               <CheckCircle size={16} /> Guardar diagnóstico
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SUSPENDER MEDICAMENTO */}
+      {modalSuspenderVisible && (
+        <div className="modal-extension">
+          <div className="modal-contenido">
+            <button
+              className="cerrar"
+              onClick={() => setModalSuspenderVisible(false)}
+            >
+              <X size={20} />
+            </button>
+            <h4>Suspender medicamento</h4>
+
+            <label>
+              Fecha de suspensión:
+              <input
+                type="date"
+                value={fechaSuspension}
+                onChange={(e) => setFechaSuspension(e.target.value)}
+              />
+            </label>
+
+            <p className="texto-advertencia">
+              Esta acción marcará el medicamento como suspendido y cancelará
+              las notificaciones futuras relacionadas en la app.
+            </p>
+
+            <button
+              className="aplicar aplicar-suspension"
+              onClick={confirmarSuspensionMedicamento}
+            >
+              <XCircle size={16} /> Confirmar suspensión
             </button>
           </div>
         </div>
@@ -1220,6 +1633,104 @@ const DetalleTratamiento = () => {
 
             <button className="aplicar" onClick={guardarEstudio}>
               <Plus size={16} /> Guardar estudio
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* BOTÓN FINALIZAR TRATAMIENTO */}
+      {esActivo && (
+        <div className="footer-finalizar">
+          <button
+            className="aplicar btn-finalizar-tratamiento"
+            onClick={abrirModalFinalizar}
+          >
+            <CheckCircle size={16} /> Finalizar tratamiento
+          </button>
+        </div>
+      )}
+
+      {/* MODAL FINALIZAR TRATAMIENTO */}
+      {modalFinalizarVisible && (
+        <div className="modal-extension">
+          <div className="modal-contenido">
+            <button
+              className="cerrar"
+              onClick={cerrarModalFinalizar}
+              disabled={guardandoFinalizacion}
+            >
+              <X size={20} />
+            </button>
+            <h4>Finalizar tratamiento</h4>
+
+            <p className="texto-advertencia">
+              Para finalizar el tratamiento, indicá el tipo de finalización y,
+              si se trata de una cancelación de estímulo, el motivo
+              correspondiente.
+            </p>
+
+            <label>
+              Tipo de finalización:
+              <select
+                value={tipoFinalizacion}
+                onChange={(e) => {
+                  setTipoFinalizacion(e.target.value);
+                  if (e.target.value !== "cancelacion_estimulo") {
+                    setMotivoCancelacion("");
+                  }
+                }}
+                disabled={guardandoFinalizacion}
+              >
+                <option value="">Seleccionar</option>
+                {TIPOS_FINALIZACION.map((op) => (
+                  <option key={op.value} value={op.value}>
+                    {op.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {tipoFinalizacion === "cancelacion_estimulo" && (
+              <label>
+                Motivo de cancelación del estímulo:
+                <select
+                  value={motivoCancelacion}
+                  onChange={(e) => setMotivoCancelacion(e.target.value)}
+                  disabled={guardandoFinalizacion}
+                >
+                  <option value="">Seleccionar</option>
+                  {MOTIVOS_CANCELACION.map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label>
+              Comentario adicional (opcional):
+              <textarea
+                rows={3}
+                value={comentarioFinalizacion}
+                onChange={(e) => setComentarioFinalizacion(e.target.value)}
+                disabled={guardandoFinalizacion}
+                placeholder="Ej: Estimulación completada previo a punción / Se suspende por enfermedad intercurrente..."
+              />
+            </label>
+
+            <button
+              className="aplicar aplicar-suspension"
+              onClick={confirmarFinalizacionTratamiento}
+              disabled={guardandoFinalizacion}
+            >
+              {guardandoFinalizacion ? (
+                "Finalizando..."
+              ) : (
+                <>
+                  <CheckCircle size={16} /> Confirmar finalización
+                </>
+              )}
             </button>
           </div>
         </div>
