@@ -13,84 +13,228 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+const parseFecha = (fecha) => {
+  if (!fecha) return null;
+  if (fecha?.toDate) return fecha.toDate();
+  if (fecha?.seconds) return new Date(fecha.seconds * 1000);
+  return new Date(fecha);
+};
+
+const formatearClave = (clave) =>
+  clave
+    .replace(/_/g, " ")
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase());
+
+const toNumeroValido = (valor) => {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const num = parseFloat(valor);
+  return isNaN(num) ? null : num;
+};
+
+const normalizarTipoEstudio = (tipoEstudio) => {
+  const t = String(tipoEstudio || "").toLowerCase();
+  if (t === "analisis" || t === "análisis") return "analisis";
+  if (t === "ecografia" || t === "ecografía") return "ecografia";
+  return t || "sin_tipo";
+};
+
+const etiquetaTipoEstudio = (tipoEstudio) => {
+  const n = normalizarTipoEstudio(tipoEstudio);
+  if (n === "analisis") return "Análisis";
+  if (n === "ecografia") return "Ecografía";
+  if (n === "sin_tipo") return "Sin tipo";
+  return n.charAt(0).toUpperCase() + n.slice(1);
+};
+
 const AnalisisYEvolucion = () => {
   const { id: pacienteId } = useParams();
   const [estudios, setEstudios] = useState([]);
   const [graficoAnalisis, setGraficoAnalisis] = useState([]);
   const [graficoEcografias, setGraficoEcografias] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [mensajeInfo, setMensajeInfo] = useState("");
   const [error, setError] = useState(null);
-
-  const parseFecha = (fecha) => {
-    if (!fecha) return null;
-    if (fecha.seconds) return new Date(fecha.seconds * 1000);
-    return new Date(fecha);
-  };
-
-  const formatearClave = (clave) =>
-    clave.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase());
-
-  const toNumeroValido = (valor) => {
-    const num = parseFloat(valor);
-    return isNaN(num) ? null : num;
-  };
+  const [tratamientoLabel, setTratamientoLabel] = useState("");
 
   useEffect(() => {
-    const cargarEstudios = async () => {
+    const cargarDatos = async () => {
+      if (!pacienteId) {
+        setError("ID de paciente no definido.");
+        setCargando(false);
+        return;
+      }
+
       try {
         setCargando(true);
         setError(null);
-        const estudiosRef = collection(
+        setMensajeInfo("");
+        setEstudios([]);
+        setGraficoAnalisis([]);
+        setGraficoEcografias([]);
+
+        // 1) Traer TODOS los tratamientos del paciente
+        const tratamientosRef = collection(
           db,
           "usuarios",
           pacienteId,
-          "tratamientos",
-          "activo",
-          "estudios"
+          "tratamientos"
         );
-        const snapshot = await getDocs(estudiosRef);
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const tratamientosSnap = await getDocs(tratamientosRef);
+
+        if (tratamientosSnap.empty) {
+          setError("No hay tratamientos registrados para este paciente.");
+          return;
+        }
+
+        const tratamientos = tratamientosSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
+        // 2) Filtrar SOLO tratamientos activos (nuevo modelo)
+        const activos = tratamientos.filter(
+          (t) => String(t.estado || "").toLowerCase() === "activo"
+        );
+
+        if (activos.length === 0) {
+          setError("No hay un tratamiento activo el cual analizar.");
+          return;
+        }
+
+        // 3) Si hubiera más de uno activo (raro), tomar el más reciente
+        const ordenarPorFecha = (lista) =>
+          [...lista].sort((a, b) => {
+            const fa =
+              parseFecha(a.fechaInicio) ||
+              parseFecha(a.createdAt) ||
+              new Date(0);
+            const fb =
+              parseFecha(b.fechaInicio) ||
+              parseFecha(b.createdAt) ||
+              new Date(0);
+            return fb - fa; // más nuevo primero
+          });
+
+        const tratamientoSeleccionado = ordenarPorFecha(activos)[0];
+
+        if (!tratamientoSeleccionado) {
+          setError("No se pudo determinar el tratamiento activo.");
+          return;
+        }
+
+        const tLabel =
+          tratamientoSeleccionado.tipoTratamiento ||
+          tratamientoSeleccionado.tipo ||
+          "Tratamiento activo";
+
+        setTratamientoLabel(tLabel);
+
+        // 4) Cargar estudios del tratamiento ACTIVO
+        // 👉 NUEVO MODELO: campo array `estudiosClinicos` dentro del doc de tratamiento
+        const estudiosArrayRaw = Array.isArray(
+          tratamientoSeleccionado.estudiosClinicos
+        )
+          ? tratamientoSeleccionado.estudiosClinicos
+          : [];
+
+        if (estudiosArrayRaw.length === 0) {
+          setMensajeInfo(
+            `Hay un tratamiento activo (${tLabel}), pero todavía no se han cargado análisis ni ecografías para este ciclo.`
+          );
+          return;
+        }
+
+        // Normalizamos para tener siempre un id
+        const data = estudiosArrayRaw.map((est, idx) => ({
+          id: est.id || `est_${idx}`,
+          ...est,
+        }));
+
+        // 5) Separar en análisis y ecografías
+        const analisis = data.filter(
+          (e) => normalizarTipoEstudio(e.tipoEstudio) === "analisis"
+        );
+        const ecografias = data.filter(
+          (e) => normalizarTipoEstudio(e.tipoEstudio) === "ecografia"
+        );
+
+        // 6) Armar data para gráficos
+        const grafico1 = analisis
+          .map((e) => {
+            const fechaDate = parseFecha(e.fecha || e.createdAt);
+            const etiquetaFecha = fechaDate
+              ? fechaDate.toLocaleDateString()
+              : "Sin fecha";
+
+            return {
+              fecha: etiquetaFecha,
+              estradiol: toNumeroValido(e.estradiol),
+              progesterona: toNumeroValido(e.progesterona),
+              lh: toNumeroValido(e.lh),
+            };
+          })
+          .sort((a, b) => {
+            const parseLabel = (label) => {
+              const partes = label.split("/");
+              if (partes.length !== 3) return new Date(0);
+              const [dia, mes, anio] = partes;
+              return new Date(
+                parseInt(anio, 10),
+                parseInt(mes, 10) - 1,
+                parseInt(dia, 10)
+              );
+            };
+            return parseLabel(a.fecha) - parseLabel(b.fecha);
+          });
+
+        const grafico2 = ecografias
+          .map((e) => {
+            const fechaDate = parseFecha(e.fecha || e.createdAt);
+            const etiquetaFecha = fechaDate
+              ? fechaDate.toLocaleDateString()
+              : "Sin fecha";
+
+            return {
+              fecha: etiquetaFecha,
+              total: toNumeroValido(e.recuentoFolicularTotal),
+              derecho: toNumeroValido(e.ovarioDerecho),
+              izquierdo: toNumeroValido(e.ovarioIzquierdo),
+            };
+          })
+          .sort((a, b) => {
+            const parseLabel = (label) => {
+              const partes = label.split("/");
+              if (partes.length !== 3) return new Date(0);
+              const [dia, mes, anio] = partes;
+              return new Date(
+                parseInt(anio, 10),
+                parseInt(mes, 10) - 1,
+                parseInt(dia, 10)
+              );
+            };
+            return parseLabel(a.fecha) - parseLabel(b.fecha);
+          });
+
         setEstudios(data);
-
-        const analisis = data.filter((e) => e.tipoEstudio === "Análisis");
-        const ecografias = data.filter((e) => e.tipoEstudio === "Ecografía");
-
-        const grafico1 = analisis.map((e) => ({
-          fecha: parseFecha(e.fecha)?.toLocaleDateString() || "Sin fecha",
-          estradiol: toNumeroValido(e.estradiol),
-          progesterona: toNumeroValido(e.progesterona),
-          lh: toNumeroValido(e.lh),
-        }));
-
-        const grafico2 = ecografias.map((e) => ({
-          fecha: parseFecha(e.fecha)?.toLocaleDateString() || "Sin fecha",
-          total: toNumeroValido(e.foliculos),
-          derecho: toNumeroValido(e.ovarioDerecho),
-          izquierdo: toNumeroValido(e.ovarioIzquierdo),
-        }));
-
         setGraficoAnalisis(grafico1);
         setGraficoEcografias(grafico2);
-      } catch (error) {
-        console.error("❌ Error al cargar estudios:", error);
+      } catch (err) {
+        console.error("❌ Error al cargar estudios:", err);
         setError("Error al cargar los estudios. Ver consola.");
       } finally {
         setCargando(false);
       }
     };
 
-    if (pacienteId) {
-      cargarEstudios();
-    } else {
-      setError("ID de paciente no definido.");
-      setCargando(false);
-    }
+    cargarDatos();
   }, [pacienteId]);
 
   const calcularPromedio = (campo) => {
     const valores = estudios
-      .map((e) => parseFloat(e[campo]))
-      .filter((v) => !isNaN(v));
+      .map((e) => toNumeroValido(e[campo]))
+      .filter((v) => v !== null);
+
     if (valores.length === 0) return "-";
     const total = valores.reduce((acc, v) => acc + v, 0);
     return (total / valores.length).toFixed(1);
@@ -98,17 +242,23 @@ const AnalisisYEvolucion = () => {
 
   const calcularUltimaFecha = () => {
     if (estudios.length === 0) return "-";
-    const fechas = estudios.map((e) => parseFecha(e.fecha)).filter(Boolean);
-    return fechas.sort((a, b) => b - a)[0].toLocaleDateString();
+    const fechas = estudios
+      .map((e) => parseFecha(e.fecha || e.createdAt))
+      .filter(Boolean);
+    if (fechas.length === 0) return "-";
+    const ultima = fechas.sort((a, b) => b - a)[0];
+    return ultima.toLocaleDateString();
   };
 
-  const calcularFrecuenciaPorTipo = (tipoEstudioFiltro) => {
+  const calcularFrecuenciaPorTipo = (tipoBuscado) => {
     const diasUnicos = Array.from(
       new Set(
         estudios
-          .filter((e) => e.tipoEstudio === tipoEstudioFiltro)
+          .filter(
+            (e) => normalizarTipoEstudio(e.tipoEstudio) === tipoBuscado
+          )
           .map((e) => {
-            const f = parseFecha(e.fecha);
+            const f = parseFecha(e.fecha || e.createdAt);
             if (!f) return null;
             const dia = f.getDate().toString().padStart(2, "0");
             const mes = (f.getMonth() + 1).toString().padStart(2, "0");
@@ -133,7 +283,6 @@ const AnalisisYEvolucion = () => {
     return promedio.toFixed(1) + " días";
   };
 
-  // 👉 ahora excluimos creadoEn para que no aparezca como Timestamp(...)
   const camposExcluidos = [
     "id",
     "tipoEstudio",
@@ -145,15 +294,23 @@ const AnalisisYEvolucion = () => {
     "pacienteId",
     "creadoPor",
     "creadoEn",
+    "createdAt",
+    "tratamientoId",
   ];
 
-  const mostrarCreador = (creadoPor) => {
-    if (!creadoPor) return null;
-    return (
-      <p className="autor-carga">
-        Cargado por: {creadoPor === "medico" ? "el médico" : "la paciente"}
-      </p>
-    );
+  const mostrarCreador = (est) => {
+    if (est.cargadoPorNombre) {
+      return (
+        <p className="autor-carga">Cargado por: {est.cargadoPorNombre}</p>
+      );
+    }
+    if (est.creadoPor === "medico") {
+      return <p className="autor-carga">Cargado por: el médico</p>;
+    }
+    if (est.creadoPor === "paciente") {
+      return <p className="autor-carga">Cargado por: la paciente</p>;
+    }
+    return null;
   };
 
   const formatearCreadoEn = (creadoEn) => {
@@ -169,60 +326,80 @@ const AnalisisYEvolucion = () => {
 
   return (
     <div className="analisis-evolucion">
-      <h3>Análisis médicos</h3>
-
-      {cargando && <p>Cargando estudios...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {!cargando && estudios.length === 0 && !error && (
-        <p>No hay estudios cargados para este paciente.</p>
-      )}
-
-      <div className="cards-estudios">
-        {estudios.map((est) => (
-          <div className="card-estudio" key={est.id}>
-            <strong>{est.tipoEstudio || "Sin tipo"}</strong>
-            <p>
-              Fecha:{" "}
-              {parseFecha(est.fecha)?.toLocaleDateString() || "Sin fecha"}
-            </p>
-
-            {est.creadoEn && (
-              <p className="creado-en">
-                Creado el: {formatearCreadoEn(est.creadoEn)}
-              </p>
-            )}
-
-            <ul>
-              {Object.entries(est).map(([clave, valor]) => {
-  if (camposExcluidos.includes(clave)) return null;
-
-  // Ocultar campos vacíos, null, undefined o strings en blanco
-  if (
-    valor === null ||
-    valor === undefined ||
-    valor === "" ||
-    (typeof valor === "string" && valor.trim() === "")
-  ) {
-    return null;
-  }
-
-  return (
-    <li key={clave}>{`${formatearClave(clave)}: ${valor}`}</li>
-  );
-})}
-
-            </ul>
-            {mostrarCreador(est.creadoPor)}
-            {est.archivoURL && (
-              <a href={est.archivoURL} target="_blank" rel="noopener noreferrer">
-                Ver archivo
-              </a>
-            )}
-          </div>
-        ))}
+      <div className="header-analisis">
+        <h3>Análisis y evolución del tratamiento</h3>
+        {tratamientoLabel && !error && (
+          <p className="tag-tratamiento">
+            Tratamiento analizado: <strong>{tratamientoLabel}</strong>
+          </p>
+        )}
       </div>
 
-      {graficoAnalisis.length > 0 && (
+      {cargando && <p>Cargando estudios...</p>}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {!cargando && !error && mensajeInfo && <p>{mensajeInfo}</p>}
+
+      {/* Cards de estudios */}
+      {!error && estudios.length > 0 && (
+        <div className="cards-estudios">
+          {estudios.map((est) => {
+            const tipoLabel = etiquetaTipoEstudio(est.tipoEstudio);
+            const fecha = parseFecha(est.fecha || est.createdAt);
+
+            return (
+              <div className="card-estudio" key={est.id}>
+                <strong>{tipoLabel}</strong>
+                <p>
+                  Fecha: {fecha ? fecha.toLocaleDateString() : "Sin fecha"}
+                </p>
+
+                {est.creadoEn && (
+                  <p className="creado-en">
+                    Creado el: {formatearCreadoEn(est.creadoEn)}
+                  </p>
+                )}
+
+                <ul>
+                  {Object.entries(est).map(([clave, valor]) => {
+                    if (camposExcluidos.includes(clave)) return null;
+
+                    if (
+                      valor === null ||
+                      valor === undefined ||
+                      valor === "" ||
+                      (typeof valor === "string" && valor.trim() === "")
+                    ) {
+                      return null;
+                    }
+
+                    return (
+                      <li key={clave}>{`${formatearClave(
+                        clave
+                      )}: ${valor}`}</li>
+                    );
+                  })}
+                </ul>
+
+                {mostrarCreador(est)}
+                {est.archivoURL && (
+                  <a
+                    href={est.archivoURL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Ver archivo
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Gráfico de hormonas */}
+      {!error && graficoAnalisis.length > 0 && (
         <>
           <h3>Evolución de valores hormonales</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -237,30 +414,23 @@ const AnalisisYEvolucion = () => {
               <Line
                 type="monotone"
                 dataKey="estradiol"
-                stroke="#8884d8"
                 name="Estradiol"
                 connectNulls
               />
               <Line
                 type="monotone"
                 dataKey="progesterona"
-                stroke="#82ca9d"
                 name="Progesterona"
                 connectNulls
               />
-              <Line
-                type="monotone"
-                dataKey="lh"
-                stroke="#ffc658"
-                name="LH"
-                connectNulls
-              />
+              <Line type="monotone" dataKey="lh" name="LH" connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </>
       )}
 
-      {graficoEcografias.length > 0 && (
+      {/* Gráfico de ecografías */}
+      {!error && graficoEcografias.length > 0 && (
         <>
           <h3>Evolución ecográfica</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -275,21 +445,18 @@ const AnalisisYEvolucion = () => {
               <Line
                 type="monotone"
                 dataKey="total"
-                stroke="#ff7300"
                 name="Recuento total"
                 connectNulls
               />
               <Line
                 type="monotone"
                 dataKey="derecho"
-                stroke="#82ca9d"
                 name="Ovario derecho"
                 connectNulls
               />
               <Line
                 type="monotone"
                 dataKey="izquierdo"
-                stroke="#8884d8"
                 name="Ovario izquierdo"
                 connectNulls
               />
@@ -304,16 +471,16 @@ const AnalisisYEvolucion = () => {
         <div>Promedio Progesterona: {calcularPromedio("progesterona")}</div>
         <div>Promedio LH: {calcularPromedio("lh")}</div>
         <div>
-          Promedio Recuento Folicular: {calcularPromedio("foliculos")}
+          Promedio Recuento Folicular:{" "}
+          {calcularPromedio("recuentoFolicularTotal")}
         </div>
         <div>Último estudio: {calcularUltimaFecha()}</div>
         <div>
           Frecuencia de análisis clínicos:{" "}
-          {calcularFrecuenciaPorTipo("Análisis")}
+          {calcularFrecuenciaPorTipo("analisis")}
         </div>
         <div>
-          Frecuencia de ecografías:{" "}
-          {calcularFrecuenciaPorTipo("Ecografía")}
+          Frecuencia de ecografías: {calcularFrecuenciaPorTipo("ecografia")}
         </div>
       </div>
     </div>

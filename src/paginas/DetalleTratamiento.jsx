@@ -13,7 +13,6 @@ import {
   getDocs,
   updateDoc,
   arrayUnion,
-  deleteDoc,
   query,
   where,
 } from "firebase/firestore";
@@ -143,7 +142,7 @@ const DetalleTratamiento = () => {
   const [guardandoNuevo, setGuardandoNuevo] = useState(false);
   const [mensajeNuevoExito, setMensajeNuevoExito] = useState("");
 
-  // Estudios clínicos
+  // Estudios clínicos (ahora vienen del campo estudiosClinicos del tratamiento)
   const [estudios, setEstudios] = useState([]);
   const [modalAgregarEstudio, setModalAgregarEstudio] = useState(false);
   const [nuevoTipoEstudio, setNuevoTipoEstudio] = useState("");
@@ -222,7 +221,21 @@ const DetalleTratamiento = () => {
     );
     const tratSnap = await getDoc(tratRef);
     if (tratSnap.exists()) {
-      setTratamiento(tratSnap.data());
+      const dataTrat = tratSnap.data();
+      setTratamiento(dataTrat);
+
+      // 🔥 Levantamos estudiosClinicos desde el tratamiento y los ordenamos
+      const lista = Array.isArray(dataTrat.estudiosClinicos)
+        ? [...dataTrat.estudiosClinicos]
+        : [];
+
+      lista.sort((a, b) => {
+        const fa = parseFecha(a.fecha)?.getTime() || 0;
+        const fb = parseFecha(b.fecha)?.getTime() || 0;
+        return fb - fa; // más recientes primero
+      });
+
+      setEstudios(lista);
     }
 
     const notisSnap = await getDocs(
@@ -232,42 +245,8 @@ const DetalleTratamiento = () => {
     setNotificaciones(todas);
   };
 
-  // Carga estudios
-  const cargarEstudios = async () => {
-    const ref = collection(
-      db,
-      "usuarios",
-      idUsuario,
-      "tratamientos",
-      idTratamiento,
-      "estudios"
-    );
-    const snap = await getDocs(ref);
-    const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    setEstudios(
-      lista.sort(
-        (a, b) => (b.fecha?.seconds || 0) - (a.fecha?.seconds || 0)
-      )
-    );
-  };
-
-  const eliminarEstudio = async (id) => {
-    const ref = doc(
-      db,
-      "usuarios",
-      idUsuario,
-      "tratamientos",
-      idTratamiento,
-      "estudios",
-      id
-    );
-    await deleteDoc(ref);
-    await cargarEstudios();
-  };
-
   useEffect(() => {
     cargarDatos();
-    cargarEstudios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idUsuario, idTratamiento]);
 
@@ -540,8 +519,7 @@ const DetalleTratamiento = () => {
           "terciaria",
           nuevoNombre,
           nuevoDosis,
-          diaTratamiento,
-          idTratamiento
+          diaTratamiento
         )
       );
     }
@@ -576,16 +554,18 @@ const DetalleTratamiento = () => {
     return isNaN(n) ? null : n;
   };
 
+  // 🔥 Guardar estudio DENTRO del tratamiento (campo estudiosClinicos)
   const guardarEstudio = async () => {
     if (!nuevoTipoEstudio || !nuevaFechaEstudio) return;
+    if (!tratamiento) return;
 
     const data = {
       tipoEstudio: nuevoTipoEstudio,
-      fecha: Timestamp.fromDate(new Date(nuevaFechaEstudio)),
+      fecha: new Date(nuevaFechaEstudio),
       subtipo: subtipoEstudio || null,
       comentarios: comentariosEstudio || "",
       creadoPor: "medico",
-      creadoEn: serverTimestamp(),
+      creadoEn: new Date(),
     };
 
     if (nuevoTipoEstudio === "Análisis") {
@@ -602,33 +582,94 @@ const DetalleTratamiento = () => {
       data.foliculos = numOrNull(foliculos);
     }
 
-    await addDoc(
-      collection(
+    try {
+      const tratamientoRef = doc(
         db,
         "usuarios",
         idUsuario,
         "tratamientos",
-        idTratamiento,
-        "estudios"
-      ),
-      data
-    );
+        idTratamiento
+      );
 
-    setModalAgregarEstudio(false);
-    setNuevoTipoEstudio("");
-    setSubtipoEstudio("");
-    setNuevaFechaEstudio("");
-    setProgesterona("");
-    setEstradiol("");
-    setLh("");
-    setFsh("");
-    setHam("");
-    setIzquierdo("");
-    setDerecho("");
-    setFoliculos("");
-    setComentariosEstudio("");
+      const listaActual = Array.isArray(tratamiento.estudiosClinicos)
+        ? tratamiento.estudiosClinicos
+        : [];
 
-    cargarEstudios();
+      const nuevaLista = [...listaActual, data];
+
+      await updateDoc(tratamientoRef, {
+        estudiosClinicos: nuevaLista,
+      });
+
+      // ordenamos por fecha (más reciente primero)
+      const ordenada = [...nuevaLista].sort((a, b) => {
+        const fa = parseFecha(a.fecha)?.getTime() || 0;
+        const fb = parseFecha(b.fecha)?.getTime() || 0;
+        return fb - fa;
+      });
+
+      setEstudios(ordenada);
+      setTratamiento((prev) =>
+        prev ? { ...prev, estudiosClinicos: nuevaLista } : prev
+      );
+
+      // Limpiar modal
+      setModalAgregarEstudio(false);
+      setNuevoTipoEstudio("");
+      setSubtipoEstudio("");
+      setNuevaFechaEstudio("");
+      setProgesterona("");
+      setEstradiol("");
+      setLh("");
+      setFsh("");
+      setHam("");
+      setIzquierdo("");
+      setDerecho("");
+      setFoliculos("");
+      setComentariosEstudio("");
+    } catch (e) {
+      console.error("Error al guardar estudio:", e);
+      alert("Hubo un problema al guardar el estudio.");
+    }
+  };
+
+  // 🔥 Eliminar estudio desde el array estudiosClinicos
+  const eliminarEstudio = async (index) => {
+    if (!tratamiento) return;
+
+    try {
+      const tratamientoRef = doc(
+        db,
+        "usuarios",
+        idUsuario,
+        "tratamientos",
+        idTratamiento
+      );
+
+      const actual = Array.isArray(tratamiento.estudiosClinicos)
+        ? tratamiento.estudiosClinicos
+        : [];
+
+      const nuevaLista = actual.filter((_, i) => i !== index);
+
+      await updateDoc(tratamientoRef, {
+        estudiosClinicos: nuevaLista,
+      });
+
+      const ordenada = [...nuevaLista].sort((a, b) => {
+        const fa = parseFecha(a.fecha)?.getTime() || 0;
+        const fb = parseFecha(b.fecha)?.getTime() || 0;
+        return fb - fa;
+      });
+
+      setEstudios(ordenada);
+      setTratamiento((prev) =>
+        prev ? { ...prev, estudiosClinicos: nuevaLista } : prev
+      );
+    } catch (e) {
+      console.error("Error al eliminar estudio:", e);
+      alert("No se pudo eliminar el estudio.");
+    }
   };
 
   const guardarDiagnostico = async () => {
@@ -1427,10 +1468,10 @@ const DetalleTratamiento = () => {
       )}
 
       <div className="estudios-grid">
-        {estudios.map((est) => {
+        {estudios.map((est, index) => {
           const fecha = parseFecha(est.fecha);
           return (
-            <div key={est.id} className="card-estudio">
+            <div key={index} className="card-estudio">
               <h4>{est.tipoEstudio || "Estudio"}</h4>
               <p>Fecha: {fecha ? fecha.toLocaleDateString() : "-"}</p>
               {est.subtipo && (
@@ -1474,7 +1515,7 @@ const DetalleTratamiento = () => {
               {esActivo && (
                 <button
                   className="btn-eliminar-estudio"
-                  onClick={() => eliminarEstudio(est.id)}
+                  onClick={() => eliminarEstudio(index)}
                 >
                   <Trash size={14} /> Eliminar
                 </button>

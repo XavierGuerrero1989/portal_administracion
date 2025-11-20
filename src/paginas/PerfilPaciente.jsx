@@ -10,7 +10,6 @@ import {
   orderBy,
   query,
   updateDoc,
-  deleteDoc,
   setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -176,6 +175,10 @@ const PerfilPaciente = () => {
   const [mostrarModal, setMostrarModal] = useState(false);
 
   const [tratamientoActivo, setTratamientoActivo] = useState(null);
+  const [estadoTratamiento, setEstadoTratamiento] = useState("sin-tratamiento");
+  const [ultimoTratamientoFinalizado, setUltimoTratamientoFinalizado] =
+    useState(null);
+
   const [mostrarModalInicio, setMostrarModalInicio] = useState(false);
   const [nuevoTratamiento, setNuevoTratamiento] = useState(
     crearEstadoInicialTratamiento()
@@ -185,6 +188,7 @@ const PerfilPaciente = () => {
   const [nuevaEvolucion, setNuevaEvolucion] = useState("");
   const [seccionAbierta, setSeccionAbierta] = useState(null);
 
+  // 🔥 Estudios AHORA viven dentro del tratamiento (campo estudiosClinicos)
   const [estudios, setEstudios] = useState([]);
   const [mostrarModalEstudio, setMostrarModalEstudio] = useState(false);
   const [nuevoEstudio, setNuevoEstudio] = useState(crearEstadoInicialEstudio());
@@ -197,17 +201,60 @@ const PerfilPaciente = () => {
         const datos = docSnap.data() || {};
 
         Object.keys(datos).forEach((key) => {
-          if (datos[key] === undefined || datos[key] === null)
-            datos[key] = "";
+          if (datos[key] === undefined || datos[key] === null) datos[key] = "";
         });
 
         setPaciente(datos);
         setDatosEditados(datos);
 
-        const tratamientoRef = doc(db, `usuarios/${id}/tratamientos/activo`);
-        const tratamientoSnap = await getDoc(tratamientoRef);
-        if (tratamientoSnap.exists()) {
-          setTratamientoActivo(tratamientoSnap.data());
+        // 🔥 Leer TODOS los tratamientos para saber si hay activo/finalizado
+        const tratamientosRef = collection(db, "usuarios", id, "tratamientos");
+        const tratamientosSnap = await getDocs(tratamientosRef);
+
+        let activo = null;
+        const finalizados = [];
+
+        tratamientosSnap.forEach((t) => {
+          const dataT = t.data();
+          const estadoT = dataT.estado;
+
+          const esActivo =
+            estadoT === "activo" ||
+            estadoT === "Activo" ||
+            (!estadoT && (dataT.activo === true || t.id === "activo"));
+
+          if (esActivo) {
+            activo = { id: t.id, ...dataT };
+          } else if (estadoT === "finalizado") {
+            finalizados.push({ id: t.id, ...dataT });
+          }
+        });
+
+        if (activo) {
+          setTratamientoActivo(activo);
+          setEstadoTratamiento("activo");
+
+          // 🔥 Cargar estudios desde el campo del tratamiento
+          const estudiosActivos = Array.isArray(activo.estudiosClinicos)
+            ? activo.estudiosClinicos
+            : [];
+          setEstudios(estudiosActivos);
+        } else if (finalizados.length > 0) {
+          finalizados.sort((a, b) => {
+            const fa = a.fechaFin?.seconds
+              ? new Date(a.fechaFin.seconds * 1000)
+              : new Date(a.fechaFin);
+            const fb = b.fechaFin?.seconds
+              ? new Date(b.fechaFin.seconds * 1000)
+              : new Date(b.fechaFin);
+            return fb - fa;
+          });
+          setUltimoTratamientoFinalizado(finalizados[0]);
+          setEstadoTratamiento("finalizado");
+          setEstudios([]); // En perfil solo mostramos estudios del tratamiento activo
+        } else {
+          setEstadoTratamiento("sin-tratamiento");
+          setEstudios([]);
         }
       } else {
         console.error("Paciente no encontrado");
@@ -250,14 +297,25 @@ const PerfilPaciente = () => {
     setNuevaEvolucion("");
   };
 
-  const eliminarEstudio = async (idEstudio) => {
+  // 🔥 Eliminar estudio del array estudiosClinicos del tratamiento activo
+  const eliminarEstudio = async (indexEstudio) => {
     try {
-      await deleteDoc(
-        doc(db, `usuarios/${id}/tratamientos/activo/estudios/${idEstudio}`)
+      if (!tratamientoActivo) return;
+
+      const nuevaLista = estudios.filter((_, idx) => idx !== indexEstudio);
+
+      const refTrat = doc(db, `usuarios/${id}/tratamientos/activo`);
+      await updateDoc(refTrat, {
+        estudiosClinicos: nuevaLista,
+      });
+
+      setEstudios(nuevaLista);
+      setTratamientoActivo((prev) =>
+        prev ? { ...prev, estudiosClinicos: nuevaLista } : prev
       );
-      setEstudios((prev) => prev.filter((est) => est.id !== idEstudio));
     } catch (err) {
       console.error("Error al eliminar estudio:", err);
+      alert("Error al eliminar estudio");
     }
   };
 
@@ -265,33 +323,12 @@ const PerfilPaciente = () => {
     setSeccionAbierta((prev) => (prev === seccion ? null : seccion));
   };
 
-  useEffect(() => {
-    const cargarEstudios = async () => {
-      if (!id || !tratamientoActivo) return;
-
-      const estudiosRef = collection(
-        db,
-        `usuarios/${id}/tratamientos/activo/estudios`
-      );
-      const snapshot = await getDocs(estudiosRef);
-      const lista = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setEstudios(lista);
-    };
-
-    cargarEstudios();
-  }, [id, tratamientoActivo]);
-
   const renderValor = (campo, valorRaw) => {
     const valor = valorRaw ?? "";
     if (!valor) return "-";
     if (campo.type === "date") return formatFecha(valor);
     return valor;
   };
-
-// 🔥  CONTINÚA EXACTAMENTE AQUÍ EN LA PARTE 2
 
   const handleChangeCampo = (key, value) => {
     setDatosEditados((prev) => ({
@@ -379,7 +416,7 @@ const PerfilPaciente = () => {
         fechaPrimeraAplicacion: v.fecha ? new Date(v.fecha) : null,
         horaAplicacion: v.hora || "",
         duracionDias: v.dias ? parseInt(v.dias, 10) || null : null,
-        dosis: v.dosis || "", // 🔥 NUEVO
+        dosis: v.dosis || "",
       }));
 
     const tratamientoDoc = {
@@ -390,6 +427,7 @@ const PerfilPaciente = () => {
         : null,
       fum: nuevoTratamiento.fum ? new Date(nuevoTratamiento.fum) : null,
       medicamentosPlanificados: medsArray,
+      estudiosClinicos: [], // 🔥 arranca vacío en el tratamiento nuevo
       creadoEn: new Date(),
     };
 
@@ -397,6 +435,8 @@ const PerfilPaciente = () => {
       const ref = doc(db, `usuarios/${id}/tratamientos/activo`);
       await setDoc(ref, tratamientoDoc);
       setTratamientoActivo(tratamientoDoc);
+      setEstadoTratamiento("activo");
+      setEstudios([]); // sin estudios al inicio
 
       // Notificaciones
       for (const med of medsArray) {
@@ -418,7 +458,7 @@ const PerfilPaciente = () => {
             tipo: "medicacion",
             nivel: "primaria",
             medicamento: med.nombre,
-            dosis: med.dosis || "", // 🔥 NUEVO
+            dosis: med.dosis || "",
             tratamientoId: "activo",
             fechaHoraProgramada: fechaHoraNotificacion,
             diaTratamiento: i + 1,
@@ -443,6 +483,7 @@ const PerfilPaciente = () => {
     }));
   };
 
+  // 🔥 Guardar estudio DENTRO del tratamiento (campo estudiosClinicos)
   const guardarEstudio = async () => {
     if (!nuevoEstudio.tipo || !nuevoEstudio.fecha) {
       alert("Completá tipo de estudio y fecha");
@@ -467,13 +508,23 @@ const PerfilPaciente = () => {
     };
 
     try {
-      const ref = collection(
-        db,
-        `usuarios/${id}/tratamientos/activo/estudios`
-      );
-      const nuevoRef = await addDoc(ref, docEstudio);
+      if (!tratamientoActivo) {
+        alert("No hay tratamiento activo para asociar el estudio.");
+        return;
+      }
 
-      setEstudios((prev) => [...prev, { id: nuevoRef.id, ...docEstudio }]);
+      const nuevaLista = [...estudios, docEstudio];
+
+      const refTrat = doc(db, `usuarios/${id}/tratamientos/activo`);
+      await updateDoc(refTrat, {
+        estudiosClinicos: nuevaLista,
+      });
+
+      setEstudios(nuevaLista);
+      setTratamientoActivo((prev) =>
+        prev ? { ...prev, estudiosClinicos: nuevaLista } : prev
+      );
+
       setMostrarModalEstudio(false);
       setNuevoEstudio(crearEstadoInicialEstudio());
     } catch (err) {
@@ -498,7 +549,11 @@ const PerfilPaciente = () => {
               </p>
               <p>
                 <strong>Estado:</strong>{" "}
-                {tratamientoActivo ? "Tratamiento activo" : "Sin tratamiento"}
+                {estadoTratamiento === "activo"
+                  ? "Tratamiento activo"
+                  : estadoTratamiento === "finalizado"
+                  ? "Tratamiento finalizado"
+                  : "Sin tratamiento"}
               </p>
             </div>
           </div>
@@ -601,7 +656,7 @@ const PerfilPaciente = () => {
             <div className="seccion seccion-tratamiento">
               <div className="seccion-header">
                 <h3>Tratamiento</h3>
-                {!tratamientoActivo && (
+                {estadoTratamiento !== "activo" && (
                   <button
                     className="btn-iniciar-tratamiento"
                     onClick={() => setMostrarModalInicio(true)}
@@ -661,8 +716,38 @@ const PerfilPaciente = () => {
                     </button>
                   </div>
                 </>
+              ) : ultimoTratamientoFinalizado ? (
+                <>
+                  <p>
+                    <strong>Tipo:</strong> {ultimoTratamientoFinalizado.tipo}
+                  </p>
+                  <p>
+                    <strong>Inicio:</strong>{" "}
+                    {ultimoTratamientoFinalizado.fechaInicio
+                      ? formatFecha(ultimoTratamientoFinalizado.fechaInicio)
+                      : "-"}
+                  </p>
+                  <p>
+                    <strong>Fin:</strong>{" "}
+                    {ultimoTratamientoFinalizado.fechaFin
+                      ? formatFecha(ultimoTratamientoFinalizado.fechaFin)
+                      : "-"}
+                  </p>
+
+                  <div style={{ marginTop: "20px" }}>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/tratamientos/${id}/${ultimoTratamientoFinalizado.id}`
+                        )
+                      }
+                    >
+                      Ver detalle completo
+                    </button>
+                  </div>
+                </>
               ) : (
-                <p>No hay tratamiento activo.</p>
+                <p>No hay tratamientos registrados.</p>
               )}
             </div>
           )}
@@ -706,76 +791,87 @@ const PerfilPaciente = () => {
                 )}
               </div>
 
-              {estudios.length === 0 ? (
-                <p>No hay estudios cargados</p>
+              {!tratamientoActivo && (
+                <p>
+                  No hay tratamiento activo. Los estudios se cargan y muestran
+                  solo para el tratamiento en curso.
+                </p>
+              )}
+
+              {tratamientoActivo && estudios.length === 0 ? (
+                <p>No hay estudios cargados para este tratamiento.</p>
               ) : (
-                <div className="estudios-scroll">
-                  {estudios.map((est) => (
-                    <div key={est.id} className="card-estudio">
-                      <p>
-                        <strong>Fecha:</strong> {formatFecha(est.fecha)}
-                      </p>
-                      <p>
-                        <strong>Tipo:</strong> {est.tipoEstudio}
-                        {est.subtipo ? ` · ${est.subtipo}` : ""}
-                      </p>
+                tratamientoActivo && (
+                  <div className="estudios-scroll">
+                    {estudios.map((est, idx) => (
+                      <div key={idx} className="card-estudio">
+                        <p>
+                          <strong>Fecha:</strong> {formatFecha(est.fecha)}
+                        </p>
+                        <p>
+                          <strong>Tipo:</strong> {est.tipoEstudio}
+                          {est.subtipo ? ` · ${est.subtipo}` : ""}
+                        </p>
 
-                      {est.fsh && (
-                        <p>
-                          <strong>FSH:</strong> {est.fsh}
-                        </p>
-                      )}
-                      {est.lh && (
-                        <p>
-                          <strong>LH:</strong> {est.lh}
-                        </p>
-                      )}
-                      {est.estradiol && (
-                        <p>
-                          <strong>Estradiol:</strong> {est.estradiol}
-                        </p>
-                      )}
-                      {est.ham && (
-                        <p>
-                          <strong>HAM:</strong> {est.ham}
-                        </p>
-                      )}
-                      {est.progesterona && (
-                        <p>
-                          <strong>Progesterona:</strong> {est.progesterona}
-                        </p>
-                      )}
+                        {est.fsh && (
+                          <p>
+                            <strong>FSH:</strong> {est.fsh}
+                          </p>
+                        )}
+                        {est.lh && (
+                          <p>
+                            <strong>LH:</strong> {est.lh}
+                          </p>
+                        )}
+                        {est.estradiol && (
+                          <p>
+                            <strong>Estradiol:</strong> {est.estradiol}
+                          </p>
+                        )}
+                        {est.ham && (
+                          <p>
+                            <strong>HAM:</strong> {est.ham}
+                          </p>
+                        )}
+                        {est.progesterona && (
+                          <p>
+                            <strong>Progesterona:</strong> {est.progesterona}
+                          </p>
+                        )}
 
-                      {est.recuentoFolicular && (
-                        <p>
-                          <strong>Recuento folicular total:</strong>{" "}
-                          {est.recuentoFolicular}
-                        </p>
-                      )}
-                      {est.ovarioDerecho && (
-                        <p>
-                          <strong>Ovario derecho:</strong> {est.ovarioDerecho}
-                        </p>
-                      )}
-                      {est.ovarioIzquierdo && (
-                        <p>
-                          <strong>Ovario izquierdo:</strong>{" "}
-                          {est.ovarioIzquierdo}
-                        </p>
-                      )}
+                        {est.recuentoFolicular && (
+                          <p>
+                            <strong>Recuento folicular total:</strong>{" "}
+                            {est.recuentoFolicular}
+                          </p>
+                        )}
+                        {est.ovarioDerecho && (
+                          <p>
+                            <strong>Ovario derecho:</strong> {est.ovarioDerecho}
+                          </p>
+                        )}
+                        {est.ovarioIzquierdo && (
+                          <p>
+                            <strong>Ovario izquierdo:</strong>{" "}
+                            {est.ovarioIzquierdo}
+                          </p>
+                        )}
 
-                      {est.comentarios && (
-                        <p>
-                          <strong>Comentarios:</strong> {est.comentarios}
-                        </p>
-                      )}
+                        {est.comentarios && (
+                          <p>
+                            <strong>Comentarios:</strong> {est.comentarios}
+                          </p>
+                        )}
 
-                      <button onClick={() => eliminarEstudio(est.id)}>
-                        Eliminar
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        {tratamientoActivo && (
+                          <button onClick={() => eliminarEstudio(idx)}>
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           )}
@@ -832,10 +928,7 @@ const PerfilPaciente = () => {
                         type="date"
                         value={nuevoTratamiento.fum}
                         onChange={(e) =>
-                          handleChangeNuevoTratamiento(
-                            "fum",
-                            e.target.value
-                          )
+                          handleChangeNuevoTratamiento("fum", e.target.value)
                         }
                       />
                     </label>

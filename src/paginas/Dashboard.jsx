@@ -11,6 +11,44 @@ import TurnosHoy from "../componentes/TurnosHoy";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
+const parseFechaFlexible = (valor) => {
+  if (!valor) return null;
+
+  // Timestamp Firestore
+  if (typeof valor === "object") {
+    if (typeof valor.toDate === "function") return valor.toDate();
+    if (typeof valor.seconds === "number") return new Date(valor.seconds * 1000);
+  }
+
+  // String o Date
+  if (valor instanceof Date) {
+    return isNaN(valor.getTime()) ? null : valor;
+  }
+
+  if (typeof valor === "string") {
+    // 1) Intento directo (ISO, etc.)
+    let f = new Date(valor);
+    if (!isNaN(f.getTime())) return f;
+
+    // 2) Formato dd/mm/yyyy o dd-mm-yyyy
+    const m = valor.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (m) {
+      const d = parseInt(m[1], 10);
+      const mes = parseInt(m[2], 10) - 1;
+      const anio = parseInt(m[3], 10);
+      f = new Date(anio, mes, d);
+      if (!isNaN(f.getTime())) return f;
+    }
+  }
+
+  return null;
+};
+
+const esDeEsteMes = (fecha, mesActual, añoActual) => {
+  if (!fecha || !(fecha instanceof Date) || isNaN(fecha.getTime())) return false;
+  return fecha.getMonth() === mesActual && fecha.getFullYear() === añoActual;
+};
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +60,6 @@ const Dashboard = () => {
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [usuariosDocs, setUsuariosDocs] = useState([]);
 
-  // Lista detallada de tratamientos finalizados este mes
   const [tratamientosFinalizadosLista, setTratamientosFinalizadosLista] =
     useState([]);
 
@@ -35,19 +72,16 @@ const Dashboard = () => {
         const docs = usuariosSnapshot.docs;
 
         // Solo pacientes (no médicos)
-        const pacientesDocs = docs.filter((doc) => doc.data().role !== "medico");
+        const pacientesDocs = docs.filter((docu) => docu.data().role !== "medico");
         setUsuariosDocs(pacientesDocs);
-
-        let iniciadosMes = 0;
-        let finalizadosMes = 0;
-        let activos = 0;
-        let drogas = {};
-        const detallesFinalizados = [];
 
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
         const mesActual = hoy.getMonth();
         const añoActual = hoy.getFullYear();
+
+        // 1) Armar una lista PLANA de todos los tratamientos
+        const todosLosTratamientos = [];
 
         for (const userDoc of pacientesDocs) {
           const userRef = doc(db, "usuarios", userDoc.id);
@@ -57,127 +91,115 @@ const Dashboard = () => {
             collection(userRef, "tratamientos")
           );
 
-          let tieneTratamientoActivo = false;
+          tratamientosSnapshot.forEach((tratDoc) => {
+            // ⚠️ YA NO IGNORAMOS "activo": lo tratamos como tratamiento real
+            const data = tratDoc.data();
 
-          tratamientosSnapshot.forEach((trat) => {
-            const data = trat.data();
+            const fechaInicio =
+              parseFechaFlexible(data.fechaInicio) ||
+              parseFechaFlexible(data.createdAt) ||
+              parseFechaFlexible(data.fecha);
 
-            // Fecha de inicio del tratamiento
-            let fechaInicioTrat = null;
-            if (data.fechaInicio) {
-              if (data.fechaInicio?.seconds) {
-                fechaInicioTrat = new Date(data.fechaInicio.seconds * 1000);
-              } else {
-                const f = new Date(data.fechaInicio);
-                if (!isNaN(f.getTime())) fechaInicioTrat = f;
-              }
-            }
+            const fechaFin = parseFechaFlexible(data.fechaFin);
 
-            /** 1) TRATAMIENTOS INICIADOS MES */
-            if (fechaInicioTrat) {
-              if (
-                fechaInicioTrat.getMonth() === mesActual &&
-                fechaInicioTrat.getFullYear() === añoActual
-              ) {
-                iniciadosMes++;
-              }
-            }
+            const estadoLower = String(data.estado || "").toLowerCase();
 
-            /** 2) TRATAMIENTOS FINALIZADOS MES (conteo + detalle) */
-            if (data.fechaFin) {
-              const fechaFin = data.fechaFin?.seconds
-                ? new Date(data.fechaFin.seconds * 1000)
-                : new Date(data.fechaFin);
-
-              const estado = data.estado;
-              const esFinalizadoValido =
-                (estado === "finalizado" || !estado) && !isNaN(fechaFin.getTime());
-
-              if (
-                esFinalizadoValido &&
-                fechaFin.getMonth() === mesActual &&
-                fechaFin.getFullYear() === añoActual
-              ) {
-                finalizadosMes++;
-
-                detallesFinalizados.push({
-                  pacienteId: userDoc.id,
-                  tratamientoId: trat.id,
-                  nombre: userData.nombre || "",
-                  apellido: userData.apellido || "",
-                  dni: userData.dni || "",
-                  tipo: data.tipo || "-",
-                  fechaInicio: fechaInicioTrat,
-                  fechaFin,
-                  // 👉 Campos de finalización
-                  tipoFinalizacion: data.tipoFinalizacion || null,
-                  motivoCancelacion: data.motivoCancelacion || null,
-                  comentarioFinalizacion: data.comentarioFinalizacion || null,
-                });
-              }
-            }
-
-            /** 3) PACIENTES ACTIVOS */
-            const estado = data.estado;
-            const esTratamientoActivo =
-              estado === "activo" ||
-              estado === "Activo" ||
-              (!estado && (data.activo === true || trat.id === "activo"));
-
-            if (esTratamientoActivo) {
-              tieneTratamientoActivo = true;
-            }
-
-            /** 4) DROGAS USADAS (sin tocar, cuenta aunque esté finalizado) */
-            const acumularDroga = (med) => {
-              if (!med || typeof med !== "object") return;
-              const nombreDroga =
-                med.nombre ||
-                med.medicamento ||
-                med.nombreComercial ||
-                med.droga ||
-                "Desconocida";
-              const dosisPorDia = Number(med.dosis) || 0;
-              const diasMed =
-                Number(
-                  med.duracionDias ?? med.duracion ?? med.dias ?? 1
-                ) || 1;
-
-              if (!fechaInicioTrat) return;
-              if (
-                fechaInicioTrat.getMonth() === mesActual &&
-                fechaInicioTrat.getFullYear() === añoActual
-              ) {
-                drogas[nombreDroga] =
-                  (drogas[nombreDroga] || 0) + dosisPorDia * diasMed;
-              }
-            };
-
+            // Normalizamos medicamentosPlanificados a array SIEMPRE
+            let meds = [];
             if (data.medicamentosPlanificados) {
-              const fuente = Array.isArray(data.medicamentosPlanificados)
-                ? data.medicamentosPlanificados
-                : [data.medicamentosPlanificados];
-              fuente.forEach(acumularDroga);
+              if (Array.isArray(data.medicamentosPlanificados)) {
+                meds = data.medicamentosPlanificados.filter(
+                  (m) => m && typeof m === "object"
+                );
+              } else if (
+                data.medicamentosPlanificados &&
+                typeof data.medicamentosPlanificados === "object"
+              ) {
+                meds = [data.medicamentosPlanificados];
+              }
             }
 
-            ["fsh", "hmg", "antagonista", "viaOral"].forEach((key) => {
-              const val = data[key];
-              if (!val) return;
-              const arr = Array.isArray(val) ? val : [val];
-              arr.forEach(acumularDroga);
+            todosLosTratamientos.push({
+              pacienteId: userDoc.id,
+              nombre: userData.nombre || "",
+              apellido: userData.apellido || "",
+              dni: userData.dni || "",
+              tratamientoId: tratDoc.id,
+              fechaInicio,
+              fechaFin,
+              estadoLower,
+              tipo: data.tipoTratamiento || data.tipo || "-",
+              medicamentosPlanificados: meds,
+              tipoFinalizacion: data.tipoFinalizacion || null,
+              motivoCancelacion: data.motivoCancelacion || null,
+              comentarioFinalizacion: data.comentarioFinalizacion || null,
             });
           });
-
-          if (tieneTratamientoActivo) {
-            activos++;
-          }
         }
 
-        setTratamientosIniciados(iniciadosMes);
-        setTratamientosFinalizados(finalizadosMes);
+        // 2) Cálculos a partir de la lista plana
+
+        // a) Tratamientos iniciados este mes
+        const iniciados = todosLosTratamientos.filter((t) =>
+          esDeEsteMes(t.fechaInicio, mesActual, añoActual)
+        ).length;
+
+        // b) Tratamientos finalizados este mes (+ detalle)
+        const finalizadosLista = todosLosTratamientos.filter((t) => {
+          const esFinalizado = t.estadoLower === "finalizado";
+          return esFinalizado && esDeEsteMes(t.fechaFin, mesActual, añoActual);
+        });
+
+        const finalizados = finalizadosLista.length;
+
+        // c) Pacientes activos (al menos un tratamiento con estado "activo")
+        const pacientesActivosSet = new Set(
+          todosLosTratamientos
+            .filter((t) => t.estadoLower === "activo")
+            .map((t) => t.pacienteId)
+        );
+        const activos = pacientesActivosSet.size;
+
+        // d) Drogas usadas este mes (solo medicamentosPlanificados)
+        const drogas = {};
+
+        todosLosTratamientos.forEach((t) => {
+          const esActivo = t.estadoLower === "activo";
+          const inicioEsteMes = esDeEsteMes(t.fechaInicio, mesActual, añoActual);
+          const finEsteMes = esDeEsteMes(t.fechaFin, mesActual, añoActual);
+
+          // Consideramos drogas de:
+          // - tratamientos activos
+          // - o tratamientos iniciados este mes
+          // - o tratamientos finalizados este mes
+          if (!esActivo && !inicioEsteMes && !finEsteMes) return;
+
+          t.medicamentosPlanificados.forEach((med) => {
+            const nombreDroga =
+              med.nombre ||
+              med.medicamento ||
+              med.nombreComercial ||
+              med.droga ||
+              "Desconocida";
+
+            const diasMed =
+              Number(
+                med.duracionDias ??
+                  med.duracion ??
+                  med.dias ??
+                  1
+              ) || 1;
+
+            drogas[nombreDroga] = (drogas[nombreDroga] || 0) + diasMed;
+          });
+        });
+
+        // 3) Actualizar estados
+        setTratamientosIniciados(iniciados);
+        setTratamientosFinalizados(finalizados);
         setPacientesActivos(activos);
         setDrogaStats(drogas);
-        setTratamientosFinalizadosLista(detallesFinalizados);
+        setTratamientosFinalizadosLista(finalizadosLista);
       } catch (error) {
         console.error("Error cargando dashboard:", error);
       } finally {
@@ -190,12 +212,14 @@ const Dashboard = () => {
 
   if (loading) return <Loader />;
 
-  // helpers drogas
+  // === helpers drogas ===
   const drogasArray = Object.entries(drogaStats);
-  const totalUI = drogasArray.reduce(
+
+  const totalAplicaciones = drogasArray.reduce(
     (acc, [, total]) => acc + (Number(total) || 0),
     0
   );
+
   const drogasOrdenadas = [...drogasArray].sort(
     (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
   );
@@ -222,7 +246,7 @@ const Dashboard = () => {
       return texto;
     }
 
-    // fallback genérico por si aparece algo nuevo
+    // fallback genérico
     return t.tipoFinalizacion;
   };
 
@@ -273,7 +297,13 @@ const Dashboard = () => {
             </p>
 
             {tratamientosFinalizadosLista.length === 0 ? (
-              <p style={{ fontSize: "0.9rem", color: "#666", marginTop: "0.5rem" }}>
+              <p
+                style={{
+                  fontSize: "0.9rem",
+                  color: "#666",
+                  marginTop: "0.5rem",
+                }}
+              >
                 No hay tratamientos finalizados en este mes.
               </p>
             ) : (
@@ -349,8 +379,8 @@ const Dashboard = () => {
               <>
                 <div className="drogas-resumen">
                   <div>
-                    <span className="label">Total UI administradas</span>
-                    <span className="valor">{totalUI}</span>
+                    <span className="label">Total de aplicaciones</span>
+                    <span className="valor">{totalAplicaciones}</span>
                   </div>
                   <div>
                     <span className="label">Drogas diferentes</span>
@@ -368,8 +398,8 @@ const Dashboard = () => {
                   {drogasOrdenadas.map(([nombre, total]) => {
                     const cantidad = Number(total) || 0;
                     const porcentaje =
-                      totalUI > 0
-                        ? ((cantidad / totalUI) * 100).toFixed(1)
+                      totalAplicaciones > 0
+                        ? ((cantidad / totalAplicaciones) * 100).toFixed(1)
                         : 0;
 
                     return (
@@ -377,7 +407,7 @@ const Dashboard = () => {
                         <div className="fila-superior">
                           <span className="droga-nombre">{nombre}</span>
                           <span className="droga-ui">
-                            {cantidad} UI · {porcentaje}%
+                            {cantidad} aplicaciones · {porcentaje}%
                           </span>
                         </div>
                         <div className="barra-bg">

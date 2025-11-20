@@ -10,94 +10,116 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
 
   useEffect(() => {
     const fetchPacientesActivos = async () => {
+      setLoading(true);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
+
       const lista = [];
 
-      for (const docUsuario of usuariosDocs) {
-        const usuarioData = docUsuario.data();
+      try {
+        for (const docUsuario of usuariosDocs) {
+          const usuarioData = docUsuario.data();
 
-        const tratamientosSnap = await getDocs(
-          collection(db, `usuarios/${docUsuario.id}/tratamientos`)
-        );
+          const tratamientosSnap = await getDocs(
+            collection(db, `usuarios/${docUsuario.id}/tratamientos`)
+          );
 
-        tratamientosSnap.forEach((tratDoc) => {
-          const trat = tratDoc.data();
+          tratamientosSnap.forEach((tratDoc) => {
+            const trat = tratDoc.data();
 
-          // === Detectar si el tratamiento está ACTIVO ===
-          const esActivo =
-            trat.activo === true ||
-            trat.estado === "activo" ||
-            trat.estado === "Activo" ||
-            tratDoc.id === "activo";
+            // ✅ NUEVA LÓGICA: solo tratamientos con estado === "activo"
+            const estado = String(trat.estado || "").toLowerCase();
+            const esActivo = estado === "activo";
+            if (!esActivo) return;
 
-          if (!esActivo) return;
-
-          // Fecha de inicio
-          let fechaInicio = null;
-          if (trat.fechaInicio?.seconds) {
-            fechaInicio = new Date(trat.fechaInicio.seconds * 1000);
-          } else if (trat.fechaInicio) {
-            const f = new Date(trat.fechaInicio);
-            if (!isNaN(f.getTime())) fechaInicio = f;
-          }
-
-          let diaActual = "-";
-          if (fechaInicio) {
-            const diffMs = hoy - fechaInicio;
-            if (!isNaN(diffMs)) {
-              diaActual =
-                Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+            // Fecha de inicio del tratamiento
+            let fechaInicio = null;
+            if (trat.fechaInicio?.toDate) {
+              fechaInicio = trat.fechaInicio.toDate();
+            } else if (trat.fechaInicio?.seconds) {
+              fechaInicio = new Date(trat.fechaInicio.seconds * 1000);
+            } else if (trat.fechaInicio) {
+              const f = new Date(trat.fechaInicio);
+              if (!isNaN(f.getTime())) fechaInicio = f;
+            } else if (trat.createdAt?.toDate) {
+              // fallback suave si no hay fechaInicio
+              fechaInicio = trat.createdAt.toDate();
             }
-          }
 
-          // === Recolectar drogas ===
-          const drogas = [];
+            let diaActual = "-";
+            if (fechaInicio) {
+              const diffMs = hoy - fechaInicio;
+              if (!isNaN(diffMs)) {
+                diaActual = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+              }
+            }
 
-          const pushNombre = (med) => {
-            if (!med || typeof med !== "object") return;
-            const nombre =
-              med.nombre ||
-              med.medicamento ||
-              med.nombreComercial ||
-              null;
-            if (nombre && !drogas.includes(nombre)) drogas.push(nombre);
-          };
+            // 💊 Recolectar drogas
+            const drogas = [];
+            const pushNombre = (med) => {
+              if (!med || typeof med !== "object") return;
+              const nombre =
+                med.nombre ||
+                med.medicamento ||
+                med.nombreComercial ||
+                null;
+              if (nombre && !drogas.includes(nombre)) drogas.push(nombre);
+            };
 
-          // medicamentosPlanificados (caso Salvador)
-          if (trat.medicamentosPlanificados) {
-            const fuente = Array.isArray(trat.medicamentosPlanificados)
-              ? trat.medicamentosPlanificados
-              : [trat.medicamentosPlanificados];
-            fuente.forEach(pushNombre);
-          }
+            // 👉 Modelo nuevo: medicamentosPlanificados (array de objetos)
+            if (trat.medicamentosPlanificados) {
+              const fuente = Array.isArray(trat.medicamentosPlanificados)
+                ? trat.medicamentosPlanificados
+                : [trat.medicamentosPlanificados];
+              fuente.forEach(pushNombre);
+            }
 
-          // Otros tipos (fsh, hmg, antagonista, viaOral)
-          ["fsh", "hmg", "antagonista", "viaOral"].forEach((key) => {
-            const val = trat[key];
-            if (!val) return;
-            const arr = Array.isArray(val) ? val : [val];
-            arr.forEach(pushNombre);
+            // 🔁 Compatibilidad suave: campos viejos (por si hay tratamientos antiguos aún marcados activos)
+            ["fsh", "hmg", "antagonista", "viaOral"].forEach((key) => {
+              const val = trat[key];
+              if (!val) return;
+              const arr = Array.isArray(val) ? val : [val];
+              arr.forEach(pushNombre);
+            });
+
+            lista.push({
+              nombre: `${usuarioData.nombre || ""} ${
+                usuarioData.apellido || ""
+              }`.trim() || "Sin nombre",
+              fechaInicio: fechaInicio ? fechaInicio.toLocaleDateString() : "-",
+              tipo:
+                trat.tipoTratamiento ||
+                trat.tipo ||
+                "Tratamiento sin tipo",
+              diagnostico: trat.diagnostico || "No especificado",
+              dia: diaActual,
+              drogas,
+            });
           });
+        }
 
-          lista.push({
-            nombre: `${usuarioData.nombre} ${usuarioData.apellido}`.trim(),
-            fechaInicio: fechaInicio
-              ? fechaInicio.toLocaleDateString()
-              : "-",
-            tipo: trat.tipo || "N/A",
-            diagnostico: trat.diagnostico || "No especificado",
-            dia: diaActual,
-            drogas,
-          });
+        // Orden opcional: por días de tratamiento descendente (más avanzados primero)
+        const listaOrdenada = [...lista].sort((a, b) => {
+          const da = isNaN(parseInt(a.dia)) ? 0 : parseInt(a.dia);
+          const db = isNaN(parseInt(b.dia)) ? 0 : parseInt(b.dia);
+          return db - da;
         });
-      }
 
-      setPacientes(lista);
-      setLoading(false);
+        setPacientes(listaOrdenada);
+      } catch (err) {
+        console.error("❌ Error al cargar pacientes activos:", err);
+        setPacientes([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchPacientesActivos();
+    if (usuariosDocs && usuariosDocs.length > 0) {
+      fetchPacientesActivos();
+    } else {
+      setPacientes([]);
+      setLoading(false);
+    }
   }, [usuariosDocs]);
 
   if (loading) return <Loader />;
@@ -137,3 +159,4 @@ const PacientesActivosResumen = ({ usuariosDocs }) => {
 };
 
 export default PacientesActivosResumen;
+

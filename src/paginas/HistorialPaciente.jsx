@@ -108,7 +108,7 @@ const construirDescripcionInicio = (data) => {
   return lineas.join("\n");
 };
 
-// Medicaciones: evento propio por cada droga
+// Medicaciones: evento propio por cada droga (por ahora no se usa, queda para futuros ajustes)
 const construirDescripcionMedicacion = (med) => {
   if (!med) return "Medicación asignada";
 
@@ -154,7 +154,10 @@ const construirDescripcionEstudio = (data) => {
 
   const lineas = [];
 
-  const tipo = formatearTipoEstudio(data.tipoEstudio);
+  const tipo =
+    formatearTipoEstudio(
+      data.tipoEstudio || data.tipoGeneral || "Sin tipo"
+    );
   const subtipo = data.tipoAnalisis || data.tipoEcografia || data.subtipo;
 
   if (tipo) lineas.push(`Tipo de estudio: ${tipo}`);
@@ -165,6 +168,7 @@ const construirDescripcionEstudio = (data) => {
     "usuarioId",
     "cargadoPor",
     "tipoEstudio",
+    "tipoGeneral",
     "comentarios",
     "tipoAnalisis",
     "tipoEcografia",
@@ -237,8 +241,8 @@ const construirDescripcionEstudio = (data) => {
   return lineas.join("\n");
 };
 
-// 🔔 Alertas (notificaciones)
-const construirEventoAlerta = (data) => {
+// 🔔 Alertas (notificaciones) — ahora opcionalmente ligadas a un tratamiento
+const construirEventoAlerta = (data, infoTratamiento) => {
   if (!data) return null;
 
   const ahora = new Date();
@@ -253,7 +257,7 @@ const construirEventoAlerta = (data) => {
     estadoAlerta = "Por confirmar";
   } else {
     // pasada
-    if (data.estado === "confirmada") {
+    if (data.confirmada === true) {
       estadoAlerta = "Confirmada";
     } else {
       estadoAlerta = "No confirmada";
@@ -264,7 +268,10 @@ const construirEventoAlerta = (data) => {
 
   if (data.medicamento) partesDesc.push(`Medicamento: ${data.medicamento}`);
   if (data.dosis) partesDesc.push(`Dosis: ${data.dosis}`);
-  if (data.nivel) partesDesc.push(`Nivel: ${data.nivel}`);
+  if (data.nivel || data.tipo) {
+    const nivel = data.nivel || data.tipo;
+    partesDesc.push(`Nivel: ${nivel}`);
+  }
   if (data.diaTratamiento)
     partesDesc.push(`Día de tratamiento: ${data.diaTratamiento}`);
 
@@ -280,6 +287,8 @@ const construirEventoAlerta = (data) => {
     fecha: fechaProg,
     autor: "Sistema",
     estadoAlerta,
+    tratamientoId: data.tratamientoId || null,
+    tratamientoLabel: infoTratamiento?.label || undefined,
   };
 };
 
@@ -291,6 +300,7 @@ const HistorialPaciente = () => {
   useEffect(() => {
     const cargarHistorialGenerado = async () => {
       const historial = [];
+      const tratamientosPorId = {}; // para linkear estudios/alertas al tratamiento
 
       const mapearDocs = (docs, tipo, construirEvento) => {
         docs.forEach((d) => {
@@ -302,66 +312,195 @@ const HistorialPaciente = () => {
         });
       };
 
-      // Citas
+      // Citas (agendadas desde la app)
       try {
         const citasSnap = await getDocs(
           collection(db, "usuarios", id, "citas")
         );
-        mapearDocs(citasSnap.docs, "cita", (data) => ({
-          tipo: "cita",
-          titulo: "Cita médica",
-          descripcion: data.motivo || "Sin motivo especificado",
-          fecha: data.fecha,
-          autor: data.prof || data.medicoNombre || "Sistema",
-        }));
+        mapearDocs(citasSnap.docs, "cita", (data) => {
+          const fechaBase =
+            data.fecha || data.fechaHora || data.fechaCita || null;
+
+          const partes = [];
+          if (data.motivo) partes.push(`Motivo: ${data.motivo}`);
+          if (data.hora) partes.push(`Hora: ${data.hora}`);
+          if (data.estado) partes.push(`Estado: ${data.estado}`);
+
+          const descripcion =
+            partes.length > 0
+              ? partes.join("\n")
+              : "Cita médica agendada desde la app";
+
+          return {
+            tipo: "cita",
+            titulo: "Cita médica",
+            descripcion,
+            fecha: fechaBase,
+            autor:
+              data.prof ||
+              data.medicoNombre ||
+              data.medico ||
+              "Paciente / App",
+          };
+        });
       } catch (error) {
         console.warn("No se pudieron cargar las citas:", error);
       }
 
-      // Tratamiento activo
+      // Tratamientos (inicio + finalización + estudios ligados)
       try {
-        const activoRef = doc(db, "usuarios", id, "tratamientos", "activo");
-        const activoSnap = await getDoc(activoRef);
+        const tratamientosSnap = await getDocs(
+          collection(db, "usuarios", id, "tratamientos")
+        );
 
-        if (activoSnap.exists()) {
-          const activoData = activoSnap.data();
+        for (const tDoc of tratamientosSnap.docs) {
+          const data = tDoc.data();
+          const tratamientoId = tDoc.id;
+          const tipoTratamientoLabel =
+            data.tipoTratamiento || data.tipo || "Tratamiento";
+
+          // Guardamos info básica para usar luego con notificaciones
+          tratamientosPorId[tratamientoId] = {
+            label: tipoTratamientoLabel,
+          };
 
           // Evento de inicio
           historial.push({
             tipo: "inicio",
             titulo: "Inicio de tratamiento",
-            descripcion: construirDescripcionInicio(activoData),
+            descripcion: construirDescripcionInicio(data),
             fecha:
-              activoData.fechaInicio ||
-              activoData.createdAt ||
-              activoData.fecha ||
+              data.fechaInicio ||
+              data.createdAt ||
+              data.fecha ||
               new Date(),
-            autor: "Sistema",
+            autor: data.medicoNombre || "Sistema",
+            tratamientoId,
+            tratamientoLabel: tipoTratamientoLabel,
           });
 
-          // Eventos de medicaciones (uno por droga planificada)
-          if (Array.isArray(activoData.medicamentosPlanificados)) {
-            activoData.medicamentosPlanificados.forEach((med) => {
-              if (!med) return;
+          // Evento de finalización (si corresponde)
+          if (data.fechaFin) {
+            const estado = data.estado;
+            const esFinalizado =
+              estado === "finalizado" ||
+              estado === "Finalizado" ||
+              !estado;
 
-              const nombre = med.nombre || med.medicamento || "Medicación";
+            if (esFinalizado) {
+              const partesFin = [];
+
+              if (data.tipoFinalizacion) {
+                const t = String(data.tipoFinalizacion).toLowerCase();
+                if (t === "puncion" || t === "punción") {
+                  partesFin.push("Tipo de finalización: Punción");
+                } else if (t === "cancelacion" || t === "cancelación") {
+                  partesFin.push(
+                    "Tipo de finalización: Cancelación de estímulo"
+                  );
+                } else {
+                  partesFin.push(
+                    `Tipo de finalización: ${data.tipoFinalizacion}`
+                  );
+                }
+              }
+
+              if (data.motivoCancelacion) {
+                partesFin.push(`Motivo: ${data.motivoCancelacion}`);
+              }
+
+              if (data.comentarioFinalizacion) {
+                partesFin.push(
+                  `Comentarios: ${data.comentarioFinalizacion}`
+                );
+              }
+
+              if (partesFin.length === 0) {
+                partesFin.push("Tratamiento finalizado");
+              }
+
               historial.push({
-                tipo: "medicacion",
-                titulo: `Medicación: ${nombre}`,
-                descripcion: construirDescripcionMedicacion(med),
-                fecha:
-                  med.fechaInicio ||
-                  med.fecha ||
-                  activoData.fechaInicio ||
-                  activoData.createdAt ||
-                  new Date(),
-                autor: "Sistema",
+                tipo: "finalizacion",
+                titulo: "Finalización de tratamiento",
+                descripcion: partesFin.join("\n"),
+                fecha: data.fechaFin,
+                autor: data.medicoNombre || "Sistema",
+                tratamientoId,
+                tratamientoLabel: tipoTratamientoLabel,
               });
-            });
+            }
           }
 
-          // Estudios dentro de tratamientos/activo/estudios
+          // Estudios asociados a cada tratamiento (nuevo modelo: estudiosClinicos)
           try {
+            const basePath = [
+              "usuarios",
+              id,
+              "tratamientos",
+              tratamientoId,
+            ];
+
+            // Primero intentamos con el modelo nuevo
+            const estudiosClinicosRef = collection(
+              db,
+              ...basePath,
+              "estudiosClinicos"
+            );
+            const estudiosClinicosSnap = await getDocs(estudiosClinicosRef);
+
+            let snapAUsar = estudiosClinicosSnap;
+
+            // Si no hay nada en estudiosClinicos, intentamos fallback a "estudios" (modelo viejo)
+            if (estudiosClinicosSnap.empty) {
+              const estudiosRef = collection(db, ...basePath, "estudios");
+              const estudiosSnap = await getDocs(estudiosRef);
+              snapAUsar = estudiosSnap;
+            }
+
+            snapAUsar.docs.forEach((dEst) => {
+              const dataEst = dEst.data();
+              const fechaEst =
+                dataEst.fecha ||
+                dataEst.createdAt ||
+                dataEst.creadoEn ||
+                null;
+
+              if (!fechaEst) return;
+
+              historial.push({
+                tipo: "estudio",
+                titulo: `Estudio: ${formatearTipoEstudio(
+                  dataEst.tipoEstudio || dataEst.tipoGeneral || "Sin tipo"
+                )}`,
+                descripcion: construirDescripcionEstudio(dataEst),
+                fecha: fechaEst,
+                autor:
+                  dataEst.cargadoPor ||
+                  dataEst.creadoPor ||
+                  "Paciente",
+                tratamientoId,
+                tratamientoLabel: tipoTratamientoLabel,
+              });
+            });
+          } catch (error) {
+            console.warn(
+              `No se pudieron cargar los estudios del tratamiento ${tDoc.id}:`,
+              error
+            );
+          }
+        }
+
+        // Compatibilidad MUY vieja: tratamientos/activo/estudios (solo si existiera)
+        try {
+          const activoRef = doc(db, "usuarios", id, "tratamientos", "activo");
+          const activoSnap = await getDoc(activoRef);
+          if (activoSnap.exists()) {
+            const activoData = activoSnap.data();
+            const tipoTratamientoLabel =
+              activoData.tipoTratamiento ||
+              activoData.tipo ||
+              "Tratamiento activo";
+
             const estudiosSnap = await getDocs(
               collection(
                 db,
@@ -372,18 +511,36 @@ const HistorialPaciente = () => {
                 "estudios"
               )
             );
-            mapearDocs(estudiosSnap.docs, "estudio", (data) => ({
-              tipo: "estudio",
-              titulo: `Estudio: ${formatearTipoEstudio(
-                data.tipoEstudio || "Sin tipo"
-              )}`,
-              descripcion: construirDescripcionEstudio(data),
-              fecha: data.fecha,
-              autor: data.cargadoPor || "Paciente",
-            }));
-          } catch (error) {
-            console.warn("No se pudieron cargar los estudios:", error);
+            estudiosSnap.docs.forEach((dEst) => {
+              const dataEst = dEst.data();
+              const fechaEst =
+                dataEst.fecha ||
+                dataEst.createdAt ||
+                dataEst.creadoEn ||
+                null;
+              if (!fechaEst) return;
+
+              historial.push({
+                tipo: "estudio",
+                titulo: `Estudio: ${formatearTipoEstudio(
+                  dataEst.tipoEstudio || dataEst.tipoGeneral || "Sin tipo"
+                )}`,
+                descripcion: construirDescripcionEstudio(dataEst),
+                fecha: fechaEst,
+                autor:
+                  dataEst.cargadoPor ||
+                  dataEst.creadoPor ||
+                  "Paciente",
+                tratamientoId: "activo",
+                tratamientoLabel: tipoTratamientoLabel,
+              });
+            });
           }
+        } catch (error) {
+          console.warn(
+            "No se pudieron cargar estudios del esquema viejo (activo/estudios):",
+            error
+          );
         }
       } catch (error) {
         console.warn("No se pudieron cargar los tratamientos o estudios:", error);
@@ -405,7 +562,7 @@ const HistorialPaciente = () => {
         console.warn("No se pudo cargar la colección historial:", error);
       }
 
-      // 🔔 Alertas (notificaciones)
+      // 🔔 Alertas (notificaciones) — ahora linkeadas a tratamientos si corresponde
       try {
         const notifSnap = await getDocs(
           collection(db, "usuarios", id, "notificaciones")
@@ -413,7 +570,10 @@ const HistorialPaciente = () => {
 
         notifSnap.docs.forEach((d) => {
           const data = d.data();
-          const evento = construirEventoAlerta(data);
+          const infoTratamiento = data.tratamientoId
+            ? tratamientosPorId[data.tratamientoId]
+            : undefined;
+          const evento = construirEventoAlerta(data, infoTratamiento);
           if (evento && evento.fecha) {
             historial.push(evento);
           }
@@ -548,6 +708,12 @@ const HistorialPaciente = () => {
               <div className="contenido">
                 <p className="fecha">{eA(evento.fecha).toLocaleString()}</p>
                 <h4>{evento.titulo}</h4>
+
+                {evento.tratamientoLabel && (
+                  <p className="tag-tratamiento">
+                    Tratamiento: {evento.tratamientoLabel}
+                  </p>
+                )}
 
                 {evento.descripcion &&
                   evento.descripcion.split("\n").map((linea, idx) => (
