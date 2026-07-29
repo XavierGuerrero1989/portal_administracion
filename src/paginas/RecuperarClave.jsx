@@ -6,7 +6,6 @@ import React, { useState } from "react";
 
 import Loader from "../componentes/Loader";
 import Logo from "../assets/imagenes/logo.png";
-import LogoLab from "../assets/imagenes/logolab.png";
 
 import { auth } from "../firebase";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -54,9 +53,6 @@ const RecuperarClave = () => {
         <Loader />
       ) : (
         <form className="recovery-form" onSubmit={handleRecuperar}>
-          {/* Logo laboratorio */}
-          <img src={LogoLab} alt="Laboratorio" className="recovery-lab" />
-
           {/* Logo principal */}
           <img src={Logo} alt="Logo" className="recovery-logo" />
 

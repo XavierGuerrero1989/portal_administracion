@@ -6,7 +6,6 @@ import React, { useState } from "react";
 
 import Loader from "../componentes/Loader";
 import Logo from "../assets/imagenes/logo.png";
-import LogoLab from "../assets/imagenes/logolab.png"; // NUEVO
 import { auth, db } from "../firebase";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -63,9 +62,6 @@ const Login = () => {
         <Loader />
       ) : (
         <form className="login-form" onSubmit={handleLogin}>
-          {/* NUEVA IMAGEN DEL LABORATORIO */}
-          <img src={LogoLab} alt="Laboratorio" className="login-lab" />
-
           {/* LOGO PRINCIPAL */}
           <img src={Logo} alt="Logo" className="login-logo" />
 
