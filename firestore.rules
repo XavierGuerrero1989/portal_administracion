@@ -35,7 +35,8 @@ service cloud.firestore {
           "aceptoTerminos",
           "fechaAceptacion",
           "versionTerminos",
-          "expoPushToken"
+          "expoPushToken",
+          "expoPushTokenActualizadoEn"
         ]);
     }
 

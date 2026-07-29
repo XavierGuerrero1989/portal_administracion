@@ -10,10 +10,11 @@ import {
   orderBy,
   query,
   updateDoc,
-  setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams, useNavigate } from "react-router-dom";
+import { normalizeStudy, parseLocalDate } from "../utils/domain";
 
 const camposClinicos = [
   { key: "nombre", label: "Nombre", type: "text" },
@@ -304,7 +305,13 @@ const PerfilPaciente = () => {
 
       const nuevaLista = estudios.filter((_, idx) => idx !== indexEstudio);
 
-      const refTrat = doc(db, `usuarios/${id}/tratamientos/activo`);
+      const refTrat = doc(
+        db,
+        "usuarios",
+        id,
+        "tratamientos",
+        tratamientoActivo.id
+      );
       await updateDoc(refTrat, {
         estudiosClinicos: nuevaLista,
       });
@@ -410,10 +417,10 @@ const PerfilPaciente = () => {
     const medsArray = Object.entries(
       nuevoTratamiento.medicamentosPlanificados
     )
-      .filter(([_, v]) => v.selected)
+      .filter(([, v]) => v.selected)
       .map(([nombre, v]) => ({
         nombre,
-        fechaPrimeraAplicacion: v.fecha ? new Date(v.fecha) : null,
+        fechaPrimeraAplicacion: parseLocalDate(v.fecha),
         horaAplicacion: v.hora || "",
         duracionDias: v.dias ? parseInt(v.dias, 10) || null : null,
         dosis: v.dosis || "",
@@ -422,51 +429,55 @@ const PerfilPaciente = () => {
     const tratamientoDoc = {
       tipo: nuevoTratamiento.tipo,
       estado: "activo",
-      fechaInicio: nuevoTratamiento.fechaInicio
-        ? new Date(nuevoTratamiento.fechaInicio)
-        : null,
-      fum: nuevoTratamiento.fum ? new Date(nuevoTratamiento.fum) : null,
+      fechaInicio: parseLocalDate(nuevoTratamiento.fechaInicio),
+      fum: parseLocalDate(nuevoTratamiento.fum),
       medicamentosPlanificados: medsArray,
       estudiosClinicos: [], // 🔥 arranca vacío en el tratamiento nuevo
       creadoEn: new Date(),
     };
 
     try {
-      const ref = doc(db, `usuarios/${id}/tratamientos/activo`);
-      await setDoc(ref, tratamientoDoc);
-      setTratamientoActivo(tratamientoDoc);
-      setEstadoTratamiento("activo");
-      setEstudios([]); // sin estudios al inicio
+      const ref = doc(collection(db, "usuarios", id, "tratamientos"));
+      const batch = writeBatch(db);
+      batch.set(ref, tratamientoDoc);
 
-      // Notificaciones
+      // El tratamiento y sus recordatorios se guardan juntos para evitar
+      // estados parciales si una escritura falla.
       for (const med of medsArray) {
         if (!med.fechaPrimeraAplicacion || !med.horaAplicacion || !med.duracionDias)
           continue;
 
-        const fechaBaseStr = med.fechaPrimeraAplicacion
-          .toISOString()
-          .slice(0, 10);
-        const fechaHoraBase = combinarFechaHora(
-          fechaBaseStr,
-          med.horaAplicacion
-        );
+        const fechaBase = med.fechaPrimeraAplicacion;
+        const fechaBaseStr = [
+          fechaBase.getFullYear(),
+          String(fechaBase.getMonth() + 1).padStart(2, "0"),
+          String(fechaBase.getDate()).padStart(2, "0"),
+        ].join("-");
+        const fechaHoraBase = combinarFechaHora(fechaBaseStr, med.horaAplicacion);
 
         for (let i = 0; i < med.duracionDias; i++) {
-          const fechaHoraNotificacion = agregarDias(fechaHoraBase, i);
-
-          await addDoc(collection(db, `usuarios/${id}/notificaciones`), {
+          const notificacionRef = doc(
+            collection(db, "usuarios", id, "notificaciones")
+          );
+          batch.set(notificacionRef, {
             tipo: "medicacion",
             nivel: "primaria",
             medicamento: med.nombre,
             dosis: med.dosis || "",
-            tratamientoId: "activo",
-            fechaHoraProgramada: fechaHoraNotificacion,
+            tratamientoId: ref.id,
+            fechaHoraProgramada: agregarDias(fechaHoraBase, i),
             diaTratamiento: i + 1,
             estado: "pendiente",
+            cancelada: false,
             createdAt: new Date(),
           });
         }
       }
+
+      await batch.commit();
+      setTratamientoActivo({ id: ref.id, ...tratamientoDoc });
+      setEstadoTratamiento("activo");
+      setEstudios([]); // sin estudios al inicio
 
       setMostrarModalInicio(false);
       setNuevoTratamiento(crearEstadoInicialTratamiento());
@@ -490,11 +501,11 @@ const PerfilPaciente = () => {
       return;
     }
 
-    const docEstudio = {
+    const docEstudio = normalizeStudy({
       tipoEstudio:
         nuevoEstudio.tipo === "analisis" ? "Análisis" : "Ecografía",
       subtipo: nuevoEstudio.subtipo || "",
-      fecha: new Date(nuevoEstudio.fecha),
+      fecha: parseLocalDate(nuevoEstudio.fecha),
       fsh: nuevoEstudio.fsh || "",
       lh: nuevoEstudio.lh || "",
       estradiol: nuevoEstudio.estradiol || "",
@@ -505,7 +516,7 @@ const PerfilPaciente = () => {
       ovarioIzquierdo: nuevoEstudio.ovarioIzquierdo || "",
       comentarios: nuevoEstudio.comentarios || "",
       creadoEn: new Date(),
-    };
+    });
 
     try {
       if (!tratamientoActivo) {
@@ -515,7 +526,13 @@ const PerfilPaciente = () => {
 
       const nuevaLista = [...estudios, docEstudio];
 
-      const refTrat = doc(db, `usuarios/${id}/tratamientos/activo`);
+      const refTrat = doc(
+        db,
+        "usuarios",
+        id,
+        "tratamientos",
+        tratamientoActivo.id
+      );
       await updateDoc(refTrat, {
         estudiosClinicos: nuevaLista,
       });

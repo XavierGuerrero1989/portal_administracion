@@ -16,6 +16,7 @@ import DetalleTratamiento from "./paginas/DetalleTratamiento";
 import EstadisticasIA from "./paginas/EstadisticasIA";
 import RecuperarClave from "./paginas/RecuperarClave";
 import LayoutPrivado from "./componentes/LayoutPrivado";
+import Turnos from "./paginas/Turnos";
 
 const App = () => {
   return (
@@ -56,6 +57,17 @@ const App = () => {
             <PrivateRoute>
               <LayoutPrivado>
                 <NuevoPaciente />
+              </LayoutPrivado>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/turnos"
+          element={
+            <PrivateRoute>
+              <LayoutPrivado>
+                <Turnos />
               </LayoutPrivado>
             </PrivateRoute>
           }

@@ -2,23 +2,19 @@ import "./FormularioInfoPaciente.scss";
 
 import React, { useState } from "react";
 import {
-  collection,
   doc,
-  getDocs,
-  query,
   setDoc,
-  where,
 } from "firebase/firestore";
 
 import Loader from "./Loader";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
-const FormularioInfoPaciente = () => {
+const FormularioInfoPaciente = ({ uidPaciente, dniPaciente }) => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    dniConfirmado: "",
+    dniConfirmado: dniPaciente || "",
     telefono: "",
     fechaNacimiento: "",
     altura: "",
@@ -62,29 +58,16 @@ const FormularioInfoPaciente = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (!formData.dniConfirmado.trim()) {
-      alert("❌ No se recibió el DNI del paciente.");
+    if (!uidPaciente) {
+      alert("❌ No se recibió el identificador del paciente.");
       setLoading(false);
       return;
     }
 
     try {
-      const q = query(
-        collection(db, "usuarios"),
-        where("dni", "==", formData.dniConfirmado.trim())
-      );
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        alert("❌ No se encontró un usuario con ese DNI.");
-        setLoading(false);
-        return;
-      }
-
-      const docId = snapshot.docs[0].id;
-
       // setDoc con merge crea automáticamente los campos que no existan
       await setDoc(
-        doc(db, "usuarios", docId),
+        doc(db, "usuarios", uidPaciente),
         {
           ...formData,
         },
@@ -111,7 +94,7 @@ const FormularioInfoPaciente = () => {
         name="dniConfirmado"
         placeholder="DNI"
         value={formData.dniConfirmado}
-        onChange={handleChange}
+        readOnly
         required
       />
 

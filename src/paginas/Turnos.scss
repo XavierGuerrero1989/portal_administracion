@@ -1,0 +1,39 @@
+.turnos-page {
+  padding: 28px;
+}
+
+.turnos-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 2fr auto;
+  gap: 10px;
+  margin: 20px 0 30px;
+}
+
+.turnos-form input,
+.turnos-form select,
+.turnos-form button {
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.turnos-lista article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  margin: 8px 0;
+  border-radius: 10px;
+  background: white;
+}
+
+.turnos-lista article div,
+.turnos-lista article span {
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .turnos-form {
+    grid-template-columns: 1fr;
+  }
+}

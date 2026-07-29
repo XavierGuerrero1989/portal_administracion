@@ -108,46 +108,6 @@ const construirDescripcionInicio = (data) => {
   return lineas.join("\n");
 };
 
-// Medicaciones: evento propio por cada droga (por ahora no se usa, queda para futuros ajustes)
-const construirDescripcionMedicacion = (med) => {
-  if (!med) return "Medicación asignada";
-
-  const lineas = [];
-
-  const nombre = med.nombre || med.medicamento;
-  if (nombre) lineas.push(`Medicamento: ${nombre}`);
-
-  if (med.dosis) lineas.push(`Dosis: ${med.dosis}`);
-
-  const via = med.via || med.viaAplicacion;
-  if (via) lineas.push(`Vía: ${via}`);
-
-  if (med.frecuencia) lineas.push(`Frecuencia: ${med.frecuencia}`);
-
-  const horario = med.hora || med.horario;
-  if (horario) lineas.push(`Horario: ${horario}`);
-
-  const fInicio = med.fechaInicio || med.fecha;
-  const fFin = med.fechaFin;
-
-  if (fInicio && !fFin) {
-    lineas.push(`Desde: ${eA(fInicio).toLocaleDateString()}`);
-  } else if (fInicio && fFin) {
-    lineas.push(
-      `Desde: ${eA(fInicio).toLocaleDateString()} hasta: ${eA(
-        fFin
-      ).toLocaleDateString()}`
-    );
-  }
-
-  if (med.comentarios || med.notas) {
-    lineas.push(`Comentarios: ${med.comentarios || med.notas}`);
-  }
-
-  if (lineas.length === 0) return "Medicación asignada";
-  return lineas.join("\n");
-};
-
 // Estudios: muchos renglones, sin timestamps ni "Creado en"
 const construirDescripcionEstudio = (data) => {
   if (!data) return "";

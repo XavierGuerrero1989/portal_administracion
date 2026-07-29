@@ -10,6 +10,7 @@ import TratamientosDelMes from "../componentes/TratamientosDelMes";
 import TurnosHoy from "../componentes/TurnosHoy";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { normalizeRole } from "../utils/domain";
 
 const parseFechaFlexible = (valor) => {
   if (!valor) return null;
@@ -72,7 +73,9 @@ const Dashboard = () => {
         const docs = usuariosSnapshot.docs;
 
         // Solo pacientes (no médicos)
-        const pacientesDocs = docs.filter((docu) => docu.data().role !== "medico");
+        const pacientesDocs = docs.filter(
+          (docu) => normalizeRole(docu.data()) === "paciente"
+        );
         setUsuariosDocs(pacientesDocs);
 
         const hoy = new Date();
