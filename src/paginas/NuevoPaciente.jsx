@@ -4,10 +4,11 @@ import "./NuevoPaciente.scss";
 
 import React, { useState } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 import FormularioInfoPaciente from "../componentes/FormularioInfoPaciente";
 import Loader from "../componentes/Loader";
-import { app } from "../firebase";
+import { app, auth } from "../firebase";
 
 const NuevoPaciente = () => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ const NuevoPaciente = () => {
   const [uidPaciente, setUidPaciente] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [invitacionEnviada, setInvitacionEnviada] = useState(false);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false); // modal “Cuenta creada”
 
@@ -52,10 +54,21 @@ const NuevoPaciente = () => {
       const result = await crearPacienteBasico(cleanedFormData);
 
       if (result.data && result.data.success) {
-        // ✅ Cuenta creada correctamente
+        let emailEnviado = false;
+        try {
+          await sendPasswordResetEmail(auth, cleanedFormData.email);
+          emailEnviado = true;
+        } catch (emailError) {
+          console.error("La cuenta fue creada, pero falló la invitación:", emailError);
+          setErrorMsg(
+            "⚠️ La cuenta fue creada, pero no se pudo enviar el acceso. La paciente puede usar “Olvidé mi contraseña” desde la app."
+          );
+        }
+
+        setInvitacionEnviada(emailEnviado);
         setUidPaciente(result.data.uid);
         setFormularioExtendido(true);
-        setShowSuccessModal(true); // Abrimos modal con instrucciones
+        setShowSuccessModal(true);
       } else {
         setErrorMsg(
           "❌ " +
@@ -140,13 +153,19 @@ const NuevoPaciente = () => {
           <div className="np-modal">
             <h3>Cuenta de paciente creada</h3>
 
-            <p>La cuenta del paciente se creó correctamente en el sistema.</p>
-            <p>
-              El paciente deberá descargar la app, ingresar su{" "}
-              <strong>correo electrónico</strong> y usar la opción{" "}
-              <strong>“Olvidé mi contraseña”</strong> para recibir un email de
-              Firebase y crear su clave por primera vez.
-            </p>
+            <p>La cuenta de la paciente se creó correctamente en el sistema.</p>
+            {invitacionEnviada ? (
+              <p>
+                Enviamos a <strong>{formData.email}</strong> un correo para que
+                cree su contraseña e ingrese a la app.
+              </p>
+            ) : (
+              <p>
+                No pudimos enviar el correo de acceso. La paciente puede abrir
+                la app y usar <strong>“Olvidé mi contraseña”</strong> con{" "}
+                <strong>{formData.email}</strong>.
+              </p>
+            )}
             <p>
               Mientras tanto, podés continuar completando el perfil clínico en
               esta pantalla.
