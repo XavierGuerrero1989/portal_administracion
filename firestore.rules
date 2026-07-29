@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isDoctor() {
+      return signedIn()
+        && (
+          request.auth.token.get("role", "") == "medico"
+          || request.auth.token.get("rol", "") == "medico"
+          || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get("role", "") == "medico"
+          || get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get("rol", "") == "medico"
+        );
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function doesNotGrantMedicalRole() {
+      return request.resource.data.get("role", "") != "medico"
+        && request.resource.data.get("rol", "") != "medico";
+    }
+
+    function preservesRoleFields() {
+      return !request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasAny(["role", "rol"]);
+    }
+
+    match /usuarios/{userId} {
+      allow read: if isDoctor() || isOwner(userId);
+      allow create: if isDoctor()
+        || (isOwner(userId) && doesNotGrantMedicalRole());
+      allow update: if isDoctor()
+        || (isOwner(userId) && preservesRoleFields());
+      allow delete: if isDoctor();
+
+      match /tratamientos/{document=**} {
+        allow read, write: if isDoctor() || isOwner(userId);
+      }
+
+      match /citas/{document=**} {
+        allow read, write: if isDoctor() || isOwner(userId);
+      }
+
+      match /notificaciones/{document=**} {
+        allow read, write: if isDoctor() || isOwner(userId);
+      }
+
+      match /estudios/{document=**} {
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
+      }
+
+      match /evoluciones/{document=**} {
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
+      }
+
+      match /historial/{document=**} {
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
+      }
+
+      match /{otherDocument=**} {
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
+      }
+    }
+
+    match /tratamientos_historicos_global/{document=**} {
+      allow read, write: if isDoctor();
+    }
+
+    match /notificaciones/{document=**} {
+      allow read, write: if isDoctor();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

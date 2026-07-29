@@ -3,8 +3,9 @@ import "./Pacientes.scss";
 
 import React, { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useNavigate } from "react-router-dom";
-import { db } from "../firebase";
+import { app, db } from "../firebase";
 import ConfirmModal from "../componentes/ConfirmModal";
 
 const Pacientes = () => {
@@ -100,14 +101,12 @@ const Pacientes = () => {
   const eliminarPaciente = async () => {
     try {
       setEliminando(true);
-      const res = await fetch(
-        `https://us-central1-appfertilidad.cloudfunctions.net/eliminarPacienteConTodo?id=${pacienteAEliminar.id}`,
-        {
-          method: "DELETE",
-        }
+      const functions = getFunctions(app, "us-central1");
+      const eliminarPacienteConTodo = httpsCallable(
+        functions,
+        "eliminarPacienteConTodo"
       );
-
-      if (!res.ok) throw new Error("Error al eliminar el paciente");
+      await eliminarPacienteConTodo({ id: pacienteAEliminar.id });
 
       setPacientes((prev) =>
         prev.filter((p) => p.id !== pacienteAEliminar.id)
