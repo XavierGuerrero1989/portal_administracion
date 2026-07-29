@@ -1,182 +1,163 @@
-// functions/index.js
-
-// 🔥 Firebase Functions v2 (para onCall)
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
-// ⚙️ Functions v1 (para eliminarPacienteConTodo y otras cosas HTTP)
-const functions = require("firebase-functions");
-
-// 🌐 CORS para funciones HTTP clásicas
-const cors = require("cors")({ origin: true });
-
-// Inicializar Firebase Admin
 admin.initializeApp();
 
-/* ──────────────────────────────────────────────────────────────
-    📌 crearPacienteBasico (CALLABLE, SIN ENVÍO DE MAIL)
-    - Lo llama el portal con httpsCallable
-    - Crea usuario en Auth
-    - Crea documento en /usuarios
-    - NO envía email (lo hará luego Firebase Auth con "Olvidé mi contraseña")
-   ────────────────────────────────────────────────────────────── */
+const db = admin.firestore();
+
+async function requireDoctor(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debés iniciar sesión.");
+  }
+
+  const tokenRole = request.auth.token.role || request.auth.token.rol;
+  if (tokenRole === "medico") return request.auth.uid;
+
+  const profile = await db.collection("usuarios").doc(request.auth.uid).get();
+  const profileData = profile.exists ? profile.data() : {};
+  if (profileData.role !== "medico" && profileData.rol !== "medico") {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el personal médico autorizado puede realizar esta operación."
+    );
+  }
+
+  return request.auth.uid;
+}
+
+function normalizedText(value, maxLength) {
+  return typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ").slice(0, maxLength)
+    : "";
+}
+
 exports.crearPacienteBasico = onCall(
   {
     region: "us-central1",
+    enforceAppCheck: false,
   },
   async (request) => {
-    console.log("📥 Datos recibidos en crearPacienteBasico:", request.data);
+    const actorUid = await requireDoctor(request);
+    const email = normalizedText(request.data?.email, 254).toLowerCase();
+    const dni = normalizedText(request.data?.dni, 32);
+    const nombre = normalizedText(request.data?.nombre, 100);
+    const apellido = normalizedText(request.data?.apellido, 100);
 
-    const { email, dni, nombre, apellido } = request.data || {};
-
-    // Validación básica
-    if (!email || typeof email !== "string" || !dni || typeof dni !== "string") {
-      console.warn("❌ Faltan campos obligatorios o formato incorrecto:", {
-        email,
-        dni,
-      });
+    if (!email || !dni || !nombre || !apellido) {
       throw new HttpsError(
         "invalid-argument",
-        "Email y DNI son campos obligatorios."
+        "Nombre, apellido, email y DNI son obligatorios."
       );
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new HttpsError("invalid-argument", "El email no es válido.");
+    }
+
+    const duplicateDni = await db
+      .collection("usuarios")
+      .where("dni", "==", dni)
+      .limit(1)
+      .get();
+    if (!duplicateDni.empty) {
+      throw new HttpsError(
+        "already-exists",
+        "Ya existe un paciente con ese DNI."
+      );
+    }
+
+    let userRecord;
     try {
-      /* ────────────────────────────────
-         1️⃣ Verificar duplicado por DNI
-      ──────────────────────────────── */
-      const snapshot = await admin
-        .firestore()
-        .collection("usuarios")
-        .where("dni", "==", dni)
-        .limit(1)
-        .get();
-
-      if (!snapshot.empty) {
-        console.warn("⚠️ Ya existe un paciente con ese DNI:", dni);
-        throw new HttpsError(
-          "already-exists",
-          "Ya existe un paciente con ese DNI."
-        );
-      }
-
-      /* ────────────────────────────────
-         2️⃣ Crear usuario en Auth
-      ──────────────────────────────── */
-      const userRecord = await admin.auth().createUser({
+      userRecord = await admin.auth().createUser({
         email,
         emailVerified: false,
         disabled: false,
       });
-
-      console.log("✅ Usuario creado en Auth:", userRecord.uid);
-
-      // Asignar rol custom
       await admin.auth().setCustomUserClaims(userRecord.uid, {
         rol: "paciente",
       });
-
-      /* ────────────────────────────────
-         3️⃣ Guardar datos básicos en Firestore
-      ──────────────────────────────── */
-      await admin.firestore().collection("usuarios").doc(userRecord.uid).set({
+      await db.collection("usuarios").doc(userRecord.uid).set({
         nombre,
         apellido,
         dni,
         email,
         rol: "paciente",
-        fechaCreacion: new Date(),
+        fechaCreacion: admin.firestore.FieldValue.serverTimestamp(),
+        creadoPor: actorUid,
       });
-
-      console.log("✅ Documento de usuario creado en Firestore:", userRecord.uid);
-
-      /* ────────────────────────────────
-         4️⃣ Fin — sin envío de email
-      ──────────────────────────────── */
 
       return {
         success: true,
         uid: userRecord.uid,
-        emailSent: false, // explícito para el frontend
+        emailSent: false,
       };
     } catch (error) {
-      console.error("❌ Error en crearPacienteBasico:", error);
-      throw new HttpsError("internal", error.message || "Error interno.");
+      if (userRecord?.uid) {
+        await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+      }
+      if (error instanceof HttpsError) throw error;
+      if (error.code === "auth/email-already-exists") {
+        throw new HttpsError(
+          "already-exists",
+          "Ya existe una cuenta con ese email."
+        );
+      }
+      console.error("crearPacienteBasico failed", {
+        code: error.code || "unknown",
+      });
+      throw new HttpsError("internal", "No se pudo crear la paciente.");
     }
   }
 );
 
-/* ──────────────────────────────────────────────────────────────
-    🗑️ eliminarPacienteConTodo (HTTP + CORS)
-    - Igual que lo tenías antes
-   ────────────────────────────────────────────────────────────── */
-exports.eliminarPacienteConTodo = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    if (req.method !== "DELETE") {
-      return res.status(405).send("Método no permitido");
+exports.eliminarPacienteConTodo = onCall(
+  {
+    region: "us-central1",
+    enforceAppCheck: false,
+  },
+  async (request) => {
+    const actorUid = await requireDoctor(request);
+    const id = normalizedText(request.data?.id, 128);
+
+    if (!id || id === actorUid) {
+      throw new HttpsError(
+        "invalid-argument",
+        "El identificador de paciente no es válido."
+      );
     }
 
-    const id = req.query.id;
+    const userRef = db.collection("usuarios").doc(id);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "Paciente no encontrado.");
+    }
 
-    if (!id) {
-      return res.status(400).json({ error: "ID de paciente no proporcionado" });
+    const userData = userSnap.data();
+    if (userData.role === "medico" || userData.rol === "medico") {
+      throw new HttpsError(
+        "failed-precondition",
+        "No se puede eliminar una cuenta médica desde este flujo."
+      );
     }
 
     try {
-      const db = admin.firestore();
-      const userRef = db.collection("usuarios").doc(id);
-      const userSnap = await userRef.get();
-
-      if (!userSnap.exists) {
-        return res.status(404).json({ error: "Paciente no encontrado" });
-      }
-
-      // 🔥 1. Eliminar subcolecciones dentro de tratamientos
-      const tratamientosSnap = await userRef.collection("tratamientos").get();
-      for (const doc of tratamientosSnap.docs) {
-        const tratamientoRef = userRef.collection("tratamientos").doc(doc.id);
-        const subcollections = await tratamientoRef.listCollections();
-        for (const subcol of subcollections) {
-          const subSnap = await subcol.get();
-          for (const subDoc of subSnap.docs) {
-            await subDoc.ref.delete();
-          }
-        }
-        await tratamientoRef.delete();
-      }
-
-      // 🔥 2. Eliminar otras subcolecciones del paciente
-      const otrasSubcolecciones = await userRef.listCollections();
-      for (const subcol of otrasSubcolecciones) {
-        if (subcol.id !== "tratamientos") {
-          const subSnap = await subcol.get();
-          for (const subDoc of subSnap.docs) {
-            await subDoc.ref.delete();
-          }
-        }
-      }
-
-      // 🔥 3. Eliminar documento principal
-      await userRef.delete();
-
-      // 🔥 4. Eliminar usuario de Auth
-      try {
-        await admin.auth().deleteUser(id);
-      } catch (authError) {
-        console.warn(
-          "⚠️ No se pudo eliminar en Auth (puede no existir):",
-          authError.message
-        );
-      }
-
-      return res.status(200).json({
-        mensaje: "Paciente eliminado correctamente con todos sus datos.",
+      await db.collection("auditoria").add({
+        accion: "eliminar_paciente",
+        actorUid,
+        pacienteUid: id,
+        fecha: admin.firestore.FieldValue.serverTimestamp(),
       });
+      await db.recursiveDelete(userRef);
+      await admin.auth().deleteUser(id);
+      return { success: true };
     } catch (error) {
-      console.error("❌ Error al eliminar paciente:", error);
-      return res
-        .status(500)
-        .json({ error: "Error interno al eliminar el paciente." });
+      console.error("eliminarPacienteConTodo failed", {
+        code: error.code || "unknown",
+      });
+      throw new HttpsError(
+        "internal",
+        "No se pudo completar la eliminación del paciente."
+      );
     }
-  });
-});
+  }
+);
