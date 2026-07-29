@@ -20,11 +20,6 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function doesNotGrantMedicalRole() {
-      return request.resource.data.get("role", "") != "medico"
-        && request.resource.data.get("rol", "") != "medico";
-    }
-
     function preservesRoleFields() {
       return !request.resource.data
         .diff(resource.data)
@@ -32,24 +27,52 @@ service cloud.firestore {
         .hasAny(["role", "rol"]);
     }
 
+    function patientProfileFieldsAreAllowed() {
+      return request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasOnly([
+          "aceptoTerminos",
+          "fechaAceptacion",
+          "versionTerminos",
+          "expoPushToken"
+        ]);
+    }
+
+    function onlyConfirmsMedication() {
+      return request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasOnly(["confirmada", "fechaConfirmacion"])
+        && request.resource.data.confirmada == true;
+    }
+
     match /usuarios/{userId} {
       allow read: if isDoctor() || isOwner(userId);
-      allow create: if isDoctor()
-        || (isOwner(userId) && doesNotGrantMedicalRole());
+      allow create: if isDoctor();
       allow update: if isDoctor()
-        || (isOwner(userId) && preservesRoleFields());
+        || (
+          isOwner(userId)
+          && preservesRoleFields()
+          && patientProfileFieldsAreAllowed()
+        );
       allow delete: if isDoctor();
 
       match /tratamientos/{document=**} {
-        allow read, write: if isDoctor() || isOwner(userId);
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
       }
 
       match /citas/{document=**} {
-        allow read, write: if isDoctor() || isOwner(userId);
+        allow read: if isDoctor() || isOwner(userId);
+        allow write: if isDoctor();
       }
 
       match /notificaciones/{document=**} {
-        allow read, write: if isDoctor() || isOwner(userId);
+        allow read: if isDoctor() || isOwner(userId);
+        allow create, delete: if isDoctor();
+        allow update: if isDoctor()
+          || (isOwner(userId) && onlyConfirmsMedication());
       }
 
       match /estudios/{document=**} {
