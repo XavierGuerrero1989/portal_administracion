@@ -14,14 +14,14 @@ const Footer = () => {
         >
           MERCK Group
         </a>
-        . Realizada por{" "}
+        .{" "}
         <a
           href="https://brainworks.vercel.app/"
           target="_blank"
           rel="noopener noreferrer"
           className="footer-link"
         >
-          BRAINWORKS
+          Desarrollado por BRÄINWORKS
         </a>
         .
       </p>
