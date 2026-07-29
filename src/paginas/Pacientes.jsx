@@ -7,6 +7,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useNavigate } from "react-router-dom";
 import { app, db } from "../firebase";
 import ConfirmModal from "../componentes/ConfirmModal";
+import { normalizeRole } from "../utils/domain";
 
 const Pacientes = () => {
   const [pacientes, setPacientes] = useState([]);
@@ -25,8 +26,6 @@ const Pacientes = () => {
       const data = await Promise.all(
         querySnapshot.docs.map(async (docSnap) => {
           const paciente = { id: docSnap.id, ...docSnap.data() };
-
-          let estado = "sin-tratamiento";
 
           // Leemos TODOS los tratamientos del paciente
           const tratamientosRef = collection(
@@ -54,19 +53,19 @@ const Pacientes = () => {
             if (estadoT === "finalizado") tieneFinalizado = true;
           });
 
-          if (tieneActivo) {
-            estado = "activo";
-          } else if (tieneFinalizado) {
-            estado = "finalizado";
-          } else {
-            estado = "sin-tratamiento";
-          }
+          const estado = tieneActivo
+            ? "activo"
+            : tieneFinalizado
+              ? "finalizado"
+              : "sin-tratamiento";
 
           return { ...paciente, estado };
         })
       );
 
-      const soloPacientes = data.filter((p) => p.role !== "medico");
+      const soloPacientes = data.filter(
+        (p) => normalizeRole(p) === "paciente"
+      );
       setPacientes(soloPacientes);
     };
 

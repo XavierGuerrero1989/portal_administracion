@@ -5,6 +5,7 @@ import { collection, getDocs } from "firebase/firestore";
 
 import Loader from "./Loader";
 import { db } from "../firebase";
+import { parseLocalDate } from "../utils/domain";
 
 const TurnosHoy = ({ usuariosDocs }) => {
   const [turnos, setTurnos] = useState([]);
@@ -27,7 +28,9 @@ const TurnosHoy = ({ usuariosDocs }) => {
           const data = cita.data();
           if (!data.fecha) return;
 
-          const fechaCita = new Date(data.fecha.seconds * 1000);
+          if (data.estado === "cancelado") return;
+          const fechaCita = parseLocalDate(data.fecha);
+          if (!fechaCita) return;
           fechaCita.setHours(0, 0, 0, 0);
 
           if (fechaCita.getTime() === hoy.getTime()) {

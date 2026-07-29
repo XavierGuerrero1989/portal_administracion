@@ -18,6 +18,10 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import {
+  isNotificationCancelled,
+  parseLocalDate,
+} from "../utils/domain";
+import {
   ArrowLeft,
   Plus,
   X,
@@ -257,9 +261,7 @@ const DetalleTratamiento = () => {
     : [];
 
   // Estado del tratamiento:
-  // - Solo puede estar activo si el idTratamiento es "activo" y no tiene estado "finalizado".
-  const esFinalizado =
-    tratamiento?.estado === "finalizado" || idTratamiento !== "activo";
+  const esFinalizado = tratamiento?.estado === "finalizado";
   const esActivo = !esFinalizado;
 
   // Acordeón
@@ -519,7 +521,8 @@ const DetalleTratamiento = () => {
           "terciaria",
           nuevoNombre,
           nuevoDosis,
-          diaTratamiento
+          diaTratamiento,
+          idTratamiento
         )
       );
     }
@@ -561,7 +564,7 @@ const DetalleTratamiento = () => {
 
     const data = {
       tipoEstudio: nuevoTipoEstudio,
-      fecha: new Date(nuevaFechaEstudio),
+      fecha: parseLocalDate(nuevaFechaEstudio),
       subtipo: subtipoEstudio || null,
       comentarios: comentariosEstudio || "",
       creadoPor: "medico",
@@ -579,7 +582,10 @@ const DetalleTratamiento = () => {
     if (nuevoTipoEstudio === "Ecografía") {
       data.ovarioIzquierdo = numOrNull(izquierdo);
       data.ovarioDerecho = numOrNull(derecho);
-      data.foliculos = numOrNull(foliculos);
+      const totalFoliculos = numOrNull(foliculos);
+      data.foliculos = totalFoliculos;
+      data.recuentoFolicular = totalFoliculos;
+      data.recuentoFolicularTotal = totalFoliculos;
     }
 
     try {
@@ -715,7 +721,7 @@ const DetalleTratamiento = () => {
     const datos = arreglo[index];
     if (!datos) return;
 
-    const fechaSusp = Timestamp.fromDate(new Date(fechaSuspension));
+    const fechaSusp = Timestamp.fromDate(parseLocalDate(fechaSuspension));
 
     const actualizado = {
       ...datos,
@@ -740,7 +746,7 @@ const DetalleTratamiento = () => {
       datos.nombre || datos.medicamento || datos.nombreComercial || "Medicamento";
 
     // 👉 Cancelar notificaciones futuras de este medicamento
-    const fechaSuspDate = new Date(fechaSuspension);
+    const fechaSuspDate = parseLocalDate(fechaSuspension);
     fechaSuspDate.setHours(0, 0, 0, 0);
 
     const futuras = notificaciones.filter((n) => {
@@ -758,7 +764,7 @@ const DetalleTratamiento = () => {
       const d = parseFecha(n.fechaHoraProgramada || n.fecha);
       if (!d) return false;
 
-      return d >= fechaSuspDate && n.estado !== "cancelada";
+      return d >= fechaSuspDate && !isNotificationCancelled(n);
     });
 
     if (futuras.length > 0) {
@@ -766,7 +772,7 @@ const DetalleTratamiento = () => {
         futuras.map((n) =>
           updateDoc(
             doc(db, "usuarios", idUsuario, "notificaciones", n.id),
-            { estado: "cancelada" }
+            { estado: "cancelada", cancelada: true }
           )
         )
       );
@@ -774,7 +780,7 @@ const DetalleTratamiento = () => {
       setNotificaciones((prev) =>
         prev.map((n) =>
           futuras.find((f) => f.id === n.id)
-            ? { ...n, estado: "cancelada" }
+            ? { ...n, estado: "cancelada", cancelada: true }
             : n
         )
       );
@@ -947,6 +953,7 @@ const DetalleTratamiento = () => {
             updates.push(
               updateDoc(docSnap.ref, {
                 estado: "cancelada_por_finalizacion",
+                cancelada: true,
               })
             );
           }

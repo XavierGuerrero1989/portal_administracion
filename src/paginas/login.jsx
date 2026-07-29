@@ -11,6 +11,7 @@ import { auth, db } from "../firebase";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
+import { normalizeRole } from "../utils/domain";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -40,7 +41,7 @@ const Login = () => {
 
       const userData = userDocSnap.data();
 
-      if (userData.role !== "medico") {
+      if (normalizeRole(userData) !== "medico") {
         setError("Acceso denegado. Solo personal autorizado puede ingresar.");
         await signOut(auth);
         return;

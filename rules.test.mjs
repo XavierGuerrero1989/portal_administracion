@@ -65,6 +65,14 @@ try {
   await assertSucceeds(
     updateDoc(doc(patient, "usuarios", "patient-1"), {
       aceptoTerminos: true,
+      fechaAceptacion: new Date(),
+      versionTerminos: "2026-07-29",
+    })
+  );
+  await assertSucceeds(
+    updateDoc(doc(patient, "usuarios", "patient-1"), {
+      expoPushToken: "ExponentPushToken[test]",
+      expoPushTokenActualizadoEn: new Date(),
     })
   );
   await assertFails(
