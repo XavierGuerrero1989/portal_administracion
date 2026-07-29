@@ -1,0 +1,358 @@
+:root {
+  --bw-ink: #070b14;
+  --bw-navy: #0b1424;
+  --bw-panel: #111b2e;
+  --bw-panel-soft: #17243b;
+  --bw-violet: #a62cff;
+  --bw-violet-deep: #7b20d4;
+  --bw-cyan: #4bd5ff;
+  --bw-text: #f7f8fc;
+  --bw-muted: #a8b2c5;
+  --bw-line: rgba(151, 174, 214, 0.18);
+  --bw-success: #28c98b;
+  --bw-warning: #ffbd59;
+  --bw-danger: #ff6577;
+  --bw-radius: 18px;
+  --bw-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bw-ink);
+}
+
+body {
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(90, 72, 210, 0.2), transparent 33rem),
+    radial-gradient(circle at 88% 20%, rgba(75, 213, 255, 0.08), transparent 28rem),
+    var(--bw-ink);
+  color: var(--bw-text);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: Inter, Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+::selection {
+  background: rgba(166, 44, 255, 0.42);
+  color: white;
+}
+
+.app-container,
+.layout-privado,
+.main-content {
+  background: transparent !important;
+}
+
+.main-content {
+  width: min(1480px, 100%);
+  margin-inline: auto;
+  padding: 28px clamp(16px, 3vw, 42px) !important;
+}
+
+.header {
+  position: sticky !important;
+  top: 0;
+  min-height: 72px;
+  padding: 12px clamp(16px, 3vw, 42px) !important;
+  background: rgba(7, 11, 20, 0.88) !important;
+  border-bottom: 1px solid var(--bw-line);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+}
+
+.header::before {
+  content: "BRÄINWORKS";
+  color: var(--bw-text);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-size: 0.82rem;
+  padding-right: 22px;
+  border-right: 1px solid var(--bw-line);
+}
+
+.header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bw-violet), var(--bw-cyan), transparent);
+  opacity: 0.62;
+}
+
+.nav-links {
+  gap: 7px !important;
+  flex: 1;
+  margin-left: 20px;
+}
+
+.nav-links a {
+  color: var(--bw-muted) !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px;
+  padding: 9px 12px !important;
+  font-size: 0.88rem !important;
+  transition: 160ms ease;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--bw-line) !important;
+}
+
+.nav-links a.active {
+  box-shadow: inset 0 -2px 0 var(--bw-violet);
+}
+
+.fecha-hoy {
+  color: var(--bw-muted);
+}
+
+.fecha-hoy .icono-calendario {
+  color: var(--bw-cyan) !important;
+}
+
+.btn-logout {
+  border-color: var(--bw-line) !important;
+  color: var(--bw-text) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  padding: 9px 15px !important;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 101, 119, 0.12) !important;
+  border-color: rgba(255, 101, 119, 0.45) !important;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--bw-text);
+  letter-spacing: -0.025em;
+}
+
+h1 {
+  font-size: clamp(1.7rem, 3vw, 2.55rem);
+  margin-bottom: 6px;
+}
+
+p,
+label,
+small {
+  color: var(--bw-muted);
+}
+
+input,
+select,
+textarea {
+  color: var(--bw-text) !important;
+  background: rgba(10, 18, 31, 0.92) !important;
+  border: 1px solid var(--bw-line) !important;
+  border-radius: 12px !important;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(166, 44, 255, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(166, 44, 255, 0.13) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6f7b91;
+}
+
+option {
+  color: var(--bw-text);
+  background: var(--bw-panel);
+}
+
+button:not(.btn-logout):not(.btn-icon) {
+  border-radius: 12px !important;
+  font-weight: 700;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+button:not(.btn-logout):not(.btn-icon):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+button:not(.btn-logout):not(.btn-icon):focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(75, 213, 255, 0.42);
+  outline-offset: 3px;
+}
+
+.dashboard-card,
+.card,
+.paciente-card,
+.tratamiento-card,
+.turnos-hoy,
+.chart-container,
+.resumen-container,
+.perfil-card,
+.info-section,
+.section,
+.formulario-info,
+.detalle-tratamiento > section,
+.historial-container,
+.evolucion-container,
+.turnos-lista article,
+.modal-content,
+.np-modal,
+.confirm-modal {
+  color: var(--bw-text) !important;
+  background:
+    linear-gradient(145deg, rgba(23, 36, 59, 0.88), rgba(12, 20, 35, 0.94)) !important;
+  border: 1px solid var(--bw-line) !important;
+  border-radius: var(--bw-radius) !important;
+  box-shadow: var(--bw-shadow) !important;
+}
+
+.dashboard-card::before,
+.card::before {
+  background: linear-gradient(180deg, var(--bw-violet), var(--bw-cyan));
+}
+
+table {
+  width: 100%;
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--bw-text);
+  background: rgba(13, 23, 39, 0.78);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-radius);
+}
+
+th {
+  color: #d8dded !important;
+  background: rgba(166, 44, 255, 0.12) !important;
+  border-color: var(--bw-line) !important;
+}
+
+td {
+  color: var(--bw-muted) !important;
+  border-color: var(--bw-line) !important;
+}
+
+tr:hover td {
+  color: var(--bw-text) !important;
+  background: rgba(75, 213, 255, 0.035);
+}
+
+.login-container,
+.recuperar-container {
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(7, 11, 20, 0.55), rgba(7, 11, 20, 0.96)),
+    radial-gradient(circle at 20% 35%, rgba(82, 79, 221, 0.35), transparent 35rem),
+    var(--bw-ink) !important;
+}
+
+.login-form,
+.recuperar-card {
+  background: rgba(12, 20, 35, 0.88) !important;
+  border: 1px solid var(--bw-line);
+  border-radius: 24px !important;
+  box-shadow: var(--bw-shadow);
+  backdrop-filter: blur(20px);
+}
+
+.login-form h2,
+.recuperar-card h2 {
+  color: var(--bw-text) !important;
+}
+
+.btn-login,
+.aplicar,
+.turnos-form button,
+.btn-primary,
+.btn-guardar,
+.btn-crear {
+  color: white !important;
+  background: linear-gradient(135deg, var(--bw-violet), var(--bw-violet-deep)) !important;
+  box-shadow: 0 10px 30px rgba(166, 44, 255, 0.25);
+}
+
+.footer-container {
+  color: var(--bw-muted) !important;
+  background: rgba(5, 8, 14, 0.92) !important;
+  border-top: 1px solid var(--bw-line);
+  padding: 18px 24px !important;
+}
+
+.footer-link {
+  color: var(--bw-cyan) !important;
+  font-weight: 700;
+}
+
+.footer-link:hover {
+  color: white !important;
+}
+
+.turnos-page {
+  padding: 0 !important;
+}
+
+.turnos-form {
+  padding: 18px;
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-radius);
+  background: rgba(13, 23, 39, 0.78);
+}
+
+.turnos-lista {
+  margin-top: 28px;
+}
+
+.turnos-lista article button {
+  color: var(--bw-danger);
+  background: rgba(255, 101, 119, 0.1);
+  border: 1px solid rgba(255, 101, 119, 0.28);
+  padding: 9px 13px;
+}
+
+@media (max-width: 1050px) {
+  .header::before,
+  .fecha-hoy {
+    display: none;
+  }
+
+  .nav-links {
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .nav-links {
+    order: 2;
+    width: 100%;
+    padding-top: 8px;
+  }
+
+  .main-content {
+    padding: 20px 14px !important;
+  }
+}
