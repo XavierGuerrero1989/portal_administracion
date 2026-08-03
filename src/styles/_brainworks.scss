@@ -1,32 +1,33 @@
 :root {
-  --bw-ink: #070b14;
-  --bw-navy: #0b1424;
-  --bw-panel: #111b2e;
-  --bw-panel-soft: #17243b;
+  --bw-ink: #172033;
+  --bw-navy: #273247;
+  --bw-panel: #ffffff;
+  --bw-panel-soft: #f3f6fa;
   --bw-violet: #a62cff;
   --bw-violet-deep: #7b20d4;
   --bw-cyan: #4bd5ff;
-  --bw-text: #f7f8fc;
-  --bw-muted: #a8b2c5;
-  --bw-line: rgba(151, 174, 214, 0.18);
+  --bw-text: #172033;
+  --bw-muted: #5d687b;
+  --bw-line: #dce3ec;
+  --bw-canvas: #f7f9fc;
   --bw-success: #28c98b;
   --bw-warning: #ffbd59;
   --bw-danger: #ff6577;
   --bw-radius: 18px;
-  --bw-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+  --bw-shadow: 0 12px 34px rgba(39, 50, 71, 0.09);
 }
 
 html {
-  color-scheme: dark;
-  background: var(--bw-ink);
+  color-scheme: light;
+  background: var(--bw-canvas);
 }
 
 body {
   min-width: 320px;
   background:
-    radial-gradient(circle at 12% 0%, rgba(90, 72, 210, 0.2), transparent 33rem),
-    radial-gradient(circle at 88% 20%, rgba(75, 213, 255, 0.08), transparent 28rem),
-    var(--bw-ink);
+    radial-gradient(circle at 12% 0%, rgba(166, 44, 255, 0.07), transparent 33rem),
+    radial-gradient(circle at 88% 20%, rgba(75, 213, 255, 0.1), transparent 28rem),
+    var(--bw-canvas);
   color: var(--bw-text);
 }
 
@@ -60,15 +61,15 @@ textarea {
   top: 0;
   min-height: 72px;
   padding: 12px clamp(16px, 3vw, 42px) !important;
-  background: rgba(7, 11, 20, 0.88) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
   border-bottom: 1px solid var(--bw-line);
   backdrop-filter: blur(22px);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 26px rgba(39, 50, 71, 0.08);
 }
 
 .header::before {
   content: "BRÄINWORKS";
-  color: var(--bw-text);
+  color: var(--bw-violet-deep);
   font-weight: 800;
   letter-spacing: 0.14em;
   font-size: 0.82rem;
@@ -104,8 +105,8 @@ textarea {
 
 .nav-links a:hover,
 .nav-links a.active {
-  color: white !important;
-  background: rgba(255, 255, 255, 0.07);
+  color: var(--bw-violet-deep) !important;
+  background: rgba(166, 44, 255, 0.07);
   border-color: var(--bw-line) !important;
 }
 
@@ -124,7 +125,7 @@ textarea {
 .btn-logout {
   border-color: var(--bw-line) !important;
   color: var(--bw-text) !important;
-  background: rgba(255, 255, 255, 0.045) !important;
+  background: white !important;
   padding: 9px 15px !important;
 }
 
@@ -156,7 +157,7 @@ input,
 select,
 textarea {
   color: var(--bw-text) !important;
-  background: rgba(10, 18, 31, 0.92) !important;
+  background: #ffffff !important;
   border: 1px solid var(--bw-line) !important;
   border-radius: 12px !important;
   outline: none;
@@ -172,12 +173,12 @@ textarea:focus {
 
 input::placeholder,
 textarea::placeholder {
-  color: #6f7b91;
+  color: #7b8495;
 }
 
 option {
   color: var(--bw-text);
-  background: var(--bw-panel);
+  background: #ffffff;
 }
 
 button:not(.btn-logout):not(.btn-icon) {
@@ -216,8 +217,7 @@ a:focus-visible {
 .np-modal,
 .confirm-modal {
   color: var(--bw-text) !important;
-  background:
-    linear-gradient(145deg, rgba(23, 36, 59, 0.88), rgba(12, 20, 35, 0.94)) !important;
+  background: #ffffff !important;
   border: 1px solid var(--bw-line) !important;
   border-radius: var(--bw-radius) !important;
   box-shadow: var(--bw-shadow) !important;
@@ -234,39 +234,39 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: var(--bw-text);
-  background: rgba(13, 23, 39, 0.78);
+  background: #ffffff;
   border: 1px solid var(--bw-line);
   border-radius: var(--bw-radius);
 }
 
 th {
-  color: #d8dded !important;
-  background: rgba(166, 44, 255, 0.12) !important;
+  color: #4c338c !important;
+  background: #f3edfb !important;
   border-color: var(--bw-line) !important;
 }
 
 td {
-  color: var(--bw-muted) !important;
+  color: #465267 !important;
   border-color: var(--bw-line) !important;
 }
 
 tr:hover td {
   color: var(--bw-text) !important;
-  background: rgba(75, 213, 255, 0.035);
+  background: rgba(75, 213, 255, 0.08);
 }
 
 .login-container,
 .recuperar-container {
   min-height: 100vh;
   background:
-    linear-gradient(90deg, rgba(7, 11, 20, 0.55), rgba(7, 11, 20, 0.96)),
-    radial-gradient(circle at 20% 35%, rgba(82, 79, 221, 0.35), transparent 35rem),
-    var(--bw-ink) !important;
+    radial-gradient(circle at 15% 20%, rgba(166, 44, 255, 0.11), transparent 30rem),
+    radial-gradient(circle at 85% 75%, rgba(75, 213, 255, 0.13), transparent 30rem),
+    #f7f9fc !important;
 }
 
 .login-form,
 .recuperar-card {
-  background: rgba(12, 20, 35, 0.88) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
   border: 1px solid var(--bw-line);
   border-radius: 24px !important;
   box-shadow: var(--bw-shadow);
@@ -276,6 +276,31 @@ tr:hover td {
 .login-form h2,
 .recuperar-card h2 {
   color: var(--bw-text) !important;
+}
+
+.login-form input::placeholder,
+.recuperar-card input::placeholder {
+  color: #7b8495 !important;
+}
+
+.login-form p,
+.login-form a,
+.recuperar-card p,
+.recuperar-card a {
+  color: var(--bw-muted) !important;
+}
+
+.login-form a:hover,
+.recuperar-card a:hover {
+  color: var(--bw-violet-deep) !important;
+}
+
+.recuperar-card .mensaje-exito {
+  color: #137a54 !important;
+}
+
+.recuperar-card .mensaje-error {
+  color: #b4233c !important;
 }
 
 .btn-login,
@@ -291,7 +316,7 @@ tr:hover td {
 
 .footer-container {
   color: var(--bw-muted) !important;
-  background: rgba(5, 8, 14, 0.92) !important;
+  background: #ffffff !important;
   border-top: 1px solid var(--bw-line);
   padding: 18px 24px !important;
 }
@@ -302,7 +327,7 @@ tr:hover td {
 }
 
 .footer-link:hover {
-  color: white !important;
+  color: var(--bw-violet-deep) !important;
 }
 
 .turnos-page {
@@ -313,7 +338,7 @@ tr:hover td {
   padding: 18px;
   border: 1px solid var(--bw-line);
   border-radius: var(--bw-radius);
-  background: rgba(13, 23, 39, 0.78);
+  background: #ffffff;
 }
 
 .turnos-lista {
