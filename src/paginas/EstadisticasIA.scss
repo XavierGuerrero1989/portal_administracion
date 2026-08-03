@@ -1,16 +1,57 @@
-/* EstadisticasIA.scss */
-.estadisticas-ia {
-  padding: 2rem;
-  h2 {
-    margin-bottom: 1rem;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    li {
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #ccc;
-    }
-  }
-}
+.analysis-page { display: flex; flex-direction: column; gap: 20px; color: #172033; }
+.analysis-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.analysis-header h1 { margin: 3px 0 5px; }
+.analysis-header p { margin: 0; color: #687386; }
+.analysis-eyebrow, .card-heading > div > span { color: #7b20d4; font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.export-button { display: inline-flex; align-items: center; gap: 8px; padding: 11px 15px; color: #fff !important; background: linear-gradient(135deg, #a62cff, #7b20d4) !important; }
+.analysis-notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px; color: #465267; background: #eefaff; border: 1px solid #c9effa; border-radius: 13px; font-size: .86rem; }
+.analysis-notice svg { flex: 0 0 auto; color: #087b98; }
+.analysis-error { padding: 12px 15px; color: #a31535; background: #fff0f3; border: 1px solid #ffc9d3; border-radius: 12px; }
+.analysis-filters { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)) auto; gap: 10px; padding: 14px; background: #fff; border: 1px solid #dce3ec; border-radius: 16px; box-shadow: 0 8px 24px rgba(39,50,71,.06); }
+.analysis-filters label { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 8px; }
+.analysis-filters label svg { grid-row: 1 / 3; color: #7b20d4; }
+.analysis-filters label span { font-size: .7rem; font-weight: 750; color: #687386; }
+.analysis-filters select { grid-column: 2; padding: 5px 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font-weight: 650; }
+.analysis-filters > button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 12px; color: #4c338c; background: #f3edfb; border: 0; }
+.analysis-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.analysis-kpis article { display: flex; align-items: center; gap: 13px; padding: 17px; color: #7b20d4; background: #fff; border: 1px solid #dce3ec; border-radius: 15px; box-shadow: 0 8px 22px rgba(39,50,71,.06); }
+.analysis-kpis article div { display: flex; flex-direction: column; }
+.analysis-kpis strong { color: #172033; font-size: 1.45rem; }
+.analysis-kpis span { color: #687386; font-size: .75rem; }
+.analysis-grid { display: grid; gap: 16px; }
+.analysis-grid.two-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.analysis-card { min-width: 0; padding: 20px; background: #fff; border: 1px solid #dce3ec; border-radius: 18px; box-shadow: 0 10px 28px rgba(39,50,71,.065); }
+.card-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
+.card-heading h2 { margin: 2px 0 0; color: #172033; font-size: 1.15rem; }
+.card-heading > small { color: #7a8495; font-size: .72rem; }
+.chart-card .recharts-default-tooltip { border-color: #dce3ec !important; border-radius: 10px; box-shadow: 0 8px 24px rgba(39,50,71,.1); }
+.analysis-table-wrap { overflow-x: auto; }
+.analysis-table { min-width: 760px; box-shadow: none !important; }
+.analysis-table th, .analysis-table td { padding: 11px 12px !important; text-align: left; }
+.sample-warning, .sample-ok { display: inline-block; padding: 5px 8px; border-radius: 999px; font-size: .68rem; font-weight: 800; }
+.sample-warning { color: #9a5900; background: #fff1d7; }
+.sample-ok { color: #137a54; background: #e9f9f2; }
+.ranking-list { display: flex; flex-direction: column; gap: 12px; }
+.ranking-list > div { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding-bottom: 7px; overflow: hidden; }
+.ranking-list span { color: #465267; font-size: .83rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ranking-list strong { color: #172033; }
+.ranking-list i { grid-column: 1 / 3; display: block; height: 5px; background: linear-gradient(90deg, #a62cff, #4bd5ff); border-radius: 999px; }
+.patient-search { display: flex; align-items: center; gap: 9px; max-width: 520px; margin-bottom: 16px; color: #7b20d4; }
+.patient-search select { width: 100%; }
+.analysis-empty { display: grid; place-items: center; min-height: 150px; padding: 20px; color: #7a8495; background: #f8fafc; border: 1px dashed #ccd5e1; border-radius: 13px; text-align: center; }
+.cycle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.cycle-grid article { padding: 15px; background: #f8fafc; border: 1px solid #e4e9f1; border-radius: 14px; }
+.cycle-number { color: #7b20d4; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cycle-grid h3 { margin: 4px 0 12px; color: #172033; }
+.cycle-grid dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.cycle-grid dl div { display: flex; flex-direction: column; }
+.cycle-grid dt { color: #7a8495; font-size: .67rem; text-transform: uppercase; }
+.cycle-grid dd { margin: 2px 0 0; color: #273247; font-size: .82rem; font-weight: 650; }
+.quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.quality-grid article { display: flex; flex-direction: column; padding: 14px; background: #fff7e8; border: 1px solid #ffe1aa; border-radius: 12px; }
+.quality-grid article.coverage { background: #eefaff; border-color: #c9effa; }
+.quality-grid strong { color: #8f5200; font-size: 1.3rem; }
+.quality-grid .coverage strong { color: #087b98; }
+.quality-grid span { color: #687386; font-size: .76rem; }
+@media (max-width: 1050px) { .analysis-kpis { grid-template-columns: repeat(2, 1fr); } .analysis-filters { grid-template-columns: repeat(2, 1fr); } .analysis-grid.two-columns { grid-template-columns: 1fr; } }
+@media (max-width: 650px) { .analysis-header { align-items: flex-start; flex-direction: column; } .analysis-filters, .analysis-kpis, .quality-grid { grid-template-columns: 1fr; } .export-button { width: 100%; justify-content: center; } .card-heading { align-items: flex-start; flex-direction: column; } }
