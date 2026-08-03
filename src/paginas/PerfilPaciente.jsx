@@ -237,7 +237,7 @@ const PerfilPaciente = () => {
 
           // 🔥 Cargar estudios desde el campo del tratamiento
           const estudiosActivos = Array.isArray(activo.estudiosClinicos)
-            ? activo.estudiosClinicos
+            ? activo.estudiosClinicos.filter((estudio) => !estudio?.anuladoEn)
             : [];
           setEstudios(estudiosActivos);
         } else if (finalizados.length > 0) {

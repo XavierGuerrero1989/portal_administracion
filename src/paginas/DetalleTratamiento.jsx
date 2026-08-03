@@ -12,7 +12,7 @@ import {
   Timestamp,
   getDocs,
   updateDoc,
-  arrayUnion,
+  writeBatch,
   query,
   where,
 } from "firebase/firestore";
@@ -30,6 +30,14 @@ import {
   CheckCircle,
   XCircle,
   Trash,
+  CalendarDays,
+  Clock3,
+  Pill,
+  Activity,
+  ClipboardList,
+  AlertTriangle,
+  History,
+  Stethoscope,
 } from "lucide-react";
 
 // Opciones de diagnóstico para el desplegable
@@ -49,6 +57,18 @@ const OPCIONES_DIAGNOSTICO = [
 const TIPOS_FINALIZACION = [
   { value: "puncion", label: "Punción" },
   { value: "cancelacion_estimulo", label: "Cancelación de estímulo" },
+  { value: "transferencia", label: "Transferencia realizada" },
+  { value: "congelacion_total", label: "Congelación total" },
+  { value: "sin_transferencia", label: "Sin transferencia" },
+];
+
+const RESULTADOS_CLINICOS = [
+  { value: "pendiente", label: "Resultado pendiente" },
+  { value: "no_documentado", label: "Todavía no documentado" },
+  { value: "beta_positiva", label: "Beta positiva" },
+  { value: "embarazo_clinico", label: "Embarazo clínico" },
+  { value: "negativo", label: "Resultado negativo" },
+  { value: "no_aplica", label: "No aplica" },
 ];
 
 // Motivos de cancelación del estímulo
@@ -124,6 +144,8 @@ const DetalleTratamiento = () => {
 
   const [paciente, setPaciente] = useState(null);
   const [tratamiento, setTratamiento] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
 
   // Extender medicamento
   const [modalVisible, setModalVisible] = useState(false);
@@ -160,6 +182,10 @@ const DetalleTratamiento = () => {
   const [izquierdo, setIzquierdo] = useState("");
   const [derecho, setDerecho] = useState("");
   const [foliculos, setFoliculos] = useState("");
+  const [espesorEndometrial, setEspesorEndometrial] = useState("");
+  const [patronEndometrial, setPatronEndometrial] = useState("");
+  const [laboratorio, setLaboratorio] = useState("");
+  const [unidadHormonal, setUnidadHormonal] = useState("");
   const [comentariosEstudio, setComentariosEstudio] = useState("");
 
   // Modal diagnóstico
@@ -178,6 +204,12 @@ const DetalleTratamiento = () => {
   const [tipoFinalizacion, setTipoFinalizacion] = useState("");
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [comentarioFinalizacion, setComentarioFinalizacion] = useState("");
+  const [resultadoClinico, setResultadoClinico] = useState("no_documentado");
+  const [ovocitosRecuperados, setOvocitosRecuperados] = useState("");
+  const [ovocitosMaduros, setOvocitosMaduros] = useState("");
+  const [embrionesObtenidos, setEmbrionesObtenidos] = useState("");
+  const [embrionesTransferidos, setEmbrionesTransferidos] = useState("");
+  const [embrionesCongelados, setEmbrionesCongelados] = useState("");
   const [guardandoFinalizacion, setGuardandoFinalizacion] = useState(false);
 
   // Helpers
@@ -209,7 +241,9 @@ const DetalleTratamiento = () => {
   // Carga datos paciente + tratamiento + notificaciones
   const cargarDatos = async () => {
     if (!idUsuario || !idTratamiento) return;
-
+    setCargando(true);
+    setErrorCarga("");
+    try {
     const usuarioRef = doc(db, "usuarios", idUsuario);
     const usuarioSnap = await getDoc(usuarioRef);
     if (usuarioSnap.exists()) {
@@ -239,7 +273,7 @@ const DetalleTratamiento = () => {
         return fb - fa; // más recientes primero
       });
 
-      setEstudios(lista);
+      setEstudios(lista.filter((estudio) => !estudio.anuladoEn));
     }
 
     const notisSnap = await getDocs(
@@ -247,6 +281,12 @@ const DetalleTratamiento = () => {
     );
     const todas = notisSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     setNotificaciones(todas);
+    } catch (error) {
+      console.error("Error al cargar el detalle:", error);
+      setErrorCarga("No pudimos cargar el tratamiento. Revisá la conexión e intentá nuevamente.");
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => {
@@ -261,8 +301,9 @@ const DetalleTratamiento = () => {
     : [];
 
   // Estado del tratamiento:
-  const esFinalizado = tratamiento?.estado === "finalizado";
-  const esActivo = !esFinalizado;
+  const estadoTratamiento = String(tratamiento?.estado || "").toLowerCase();
+  const esFinalizado = estadoTratamiento === "finalizado";
+  const esActivo = estadoTratamiento === "activo";
 
   // Acordeón
   const toggleAccordion = (key) =>
@@ -340,6 +381,7 @@ const DetalleTratamiento = () => {
     setTipoFinalizacion("");
     setMotivoCancelacion("");
     setComentarioFinalizacion("");
+    setResultadoClinico("no_documentado");
     setModalFinalizarVisible(true);
   };
 
@@ -351,6 +393,10 @@ const DetalleTratamiento = () => {
   // Aplicar extensión (crea NOTIS FORMATO VIEJO)
   const aplicarExtension = async () => {
     if (!medSeleccionado || !dias || !dosis || !hora || !tratamiento) return;
+    if (Number(dias) < 1 || Number(dias) > 90) {
+      alert("La extensión debe ser de entre 1 y 90 días.");
+      return;
+    }
     setGuardando(true);
 
     const [tipo, indexStr] = medSeleccionado.split("-");
@@ -422,15 +468,18 @@ const DetalleTratamiento = () => {
     }
 
     const ref = collection(db, "usuarios", idUsuario, "notificaciones");
-    await Promise.all(nuevas.map((n) => addDoc(ref, n)));
-
-    await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+    const batch = writeBatch(db);
+    nuevas.forEach((notificacion) => batch.set(doc(ref), notificacion));
+    batch.set(doc(collection(db, "usuarios", idUsuario, "historial")), {
       tipo: "modificacion",
       titulo: "Extensión del tratamiento",
       descripcion: `${nombreMed.toUpperCase()}: +${dias} días | Hora: ${hora} | Dosis: ${dosis}`,
       fecha: serverTimestamp(),
       autor: "Profesional",
+      tratamientoId: idTratamiento,
     });
+    await batch.commit();
+    await cargarDatos();
 
     setGuardando(false);
     setMensajeExito("Extensión aplicada y notificaciones generadas ✔");
@@ -440,6 +489,10 @@ const DetalleTratamiento = () => {
   const confirmarNuevoMedicamento = async () => {
     if (!nuevoNombre || !nuevoDosis || !nuevoHora || !nuevoDias) return;
     if (!tratamiento) return;
+    if (Number(nuevoDias) < 1 || Number(nuevoDias) > 90) {
+      alert("La duración debe ser de entre 1 y 90 días.");
+      return;
+    }
 
     setGuardandoNuevo(true);
     setMensajeNuevoExito("");
@@ -461,16 +514,6 @@ const DetalleTratamiento = () => {
     );
 
     const actual = tratamiento.medicamentosPlanificados;
-
-    if (!actual) {
-      await updateDoc(tratamientoRef, {
-        medicamentosPlanificados: [nuevaData],
-      });
-    } else {
-      await updateDoc(tratamientoRef, {
-        medicamentosPlanificados: arrayUnion(nuevaData),
-      });
-    }
 
     const fechaInicio = parseFecha(tratamiento.fechaInicio);
     if (!fechaInicio) {
@@ -528,15 +571,25 @@ const DetalleTratamiento = () => {
     }
 
     const notisRef = collection(db, "usuarios", idUsuario, "notificaciones");
-    await Promise.all(nuevasNotis.map((n) => addDoc(notisRef, n)));
-
-    await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+    const batch = writeBatch(db);
+    batch.update(tratamientoRef, {
+      medicamentosPlanificados: Array.isArray(actual)
+        ? [...actual, nuevaData]
+        : actual
+          ? [actual, nuevaData]
+          : [nuevaData],
+      actualizadoEn: serverTimestamp(),
+    });
+    nuevasNotis.forEach((notificacion) => batch.set(doc(notisRef), notificacion));
+    batch.set(doc(collection(db, "usuarios", idUsuario, "historial")), {
       tipo: "agregado",
       titulo: "Nuevo medicamento agregado",
       descripcion: `${nuevoNombre} – Dosis: ${nuevoDosis} – Hora: ${nuevoHora} – Días: ${nuevoDias}`,
       fecha: serverTimestamp(),
       autor: "Profesional",
+      tratamientoId: idTratamiento,
     });
+    await batch.commit();
 
     await cargarDatos();
     setGuardandoNuevo(false);
@@ -563,12 +616,14 @@ const DetalleTratamiento = () => {
     if (!tratamiento) return;
 
     const data = {
+      idRegistro: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
       tipoEstudio: nuevoTipoEstudio,
       fecha: parseLocalDate(nuevaFechaEstudio),
       subtipo: subtipoEstudio || null,
       comentarios: comentariosEstudio || "",
       creadoPor: "medico",
       creadoEn: new Date(),
+      versionRegistro: 2,
     };
 
     if (nuevoTipoEstudio === "Análisis") {
@@ -577,6 +632,8 @@ const DetalleTratamiento = () => {
       data.lh = numOrNull(lh);
       data.fsh = numOrNull(fsh);
       data.ham = numOrNull(ham);
+      data.laboratorio = laboratorio.trim() || null;
+      data.unidadHormonal = unidadHormonal.trim() || null;
     }
 
     if (nuevoTipoEstudio === "Ecografía") {
@@ -586,6 +643,8 @@ const DetalleTratamiento = () => {
       data.foliculos = totalFoliculos;
       data.recuentoFolicular = totalFoliculos;
       data.recuentoFolicularTotal = totalFoliculos;
+      data.espesorEndometrialMm = numOrNull(espesorEndometrial);
+      data.patronEndometrial = patronEndometrial.trim() || null;
     }
 
     try {
@@ -632,6 +691,10 @@ const DetalleTratamiento = () => {
       setIzquierdo("");
       setDerecho("");
       setFoliculos("");
+      setEspesorEndometrial("");
+      setPatronEndometrial("");
+      setLaboratorio("");
+      setUnidadHormonal("");
       setComentariosEstudio("");
     } catch (e) {
       console.error("Error al guardar estudio:", e);
@@ -639,9 +702,13 @@ const DetalleTratamiento = () => {
     }
   };
 
-  // 🔥 Eliminar estudio desde el array estudiosClinicos
-  const eliminarEstudio = async (index) => {
+  // Los registros clínicos se anulan, no se destruyen: queda trazabilidad.
+  const eliminarEstudio = async (estudio) => {
     if (!tratamiento) return;
+    const confirma = window.confirm(
+      "¿Anular este estudio? El registro dejará de mostrarse, pero quedará conservado en la auditoría clínica."
+    );
+    if (!confirma) return;
 
     try {
       const tratamientoRef = doc(
@@ -656,13 +723,31 @@ const DetalleTratamiento = () => {
         ? tratamiento.estudiosClinicos
         : [];
 
-      const nuevaLista = actual.filter((_, i) => i !== index);
+      const coincide = (item) =>
+        estudio.idRegistro
+          ? item.idRegistro === estudio.idRegistro
+          : item.tipoEstudio === estudio.tipoEstudio &&
+            parseFecha(item.fecha)?.getTime() === parseFecha(estudio.fecha)?.getTime() &&
+            !item.anuladoEn;
+      let encontrado = false;
+      const nuevaLista = actual.map((item) => {
+        if (!encontrado && coincide(item)) {
+          encontrado = true;
+          return {
+            ...item,
+            anuladoEn: new Date(),
+            anuladoPor: "Profesional",
+            motivoAnulacion: "Registro anulado desde el detalle del tratamiento",
+          };
+        }
+        return item;
+      });
 
       await updateDoc(tratamientoRef, {
         estudiosClinicos: nuevaLista,
       });
 
-      const ordenada = [...nuevaLista].sort((a, b) => {
+      const ordenada = nuevaLista.filter((item) => !item.anuladoEn).sort((a, b) => {
         const fa = parseFecha(a.fecha)?.getTime() || 0;
         const fb = parseFecha(b.fecha)?.getTime() || 0;
         return fb - fa;
@@ -672,6 +757,13 @@ const DetalleTratamiento = () => {
       setTratamiento((prev) =>
         prev ? { ...prev, estudiosClinicos: nuevaLista } : prev
       );
+      await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+        tipo: "anulacion_estudio",
+        titulo: "Estudio clínico anulado",
+        descripcion: `${estudio.tipoEstudio || "Estudio"} del ${parseFecha(estudio.fecha)?.toLocaleDateString() || "sin fecha"}`,
+        fecha: serverTimestamp(),
+        autor: "Profesional",
+      });
     } catch (e) {
       console.error("Error al eliminar estudio:", e);
       alert("No se pudo eliminar el estudio.");
@@ -688,23 +780,23 @@ const DetalleTratamiento = () => {
       "tratamientos",
       idTratamiento
     );
-    const usuarioRef = doc(db, "usuarios", idUsuario);
-
     await updateDoc(tratamientoRef, {
       diagnostico: diagnosticoSeleccionado,
+      diagnosticoActualizadoEn: serverTimestamp(),
     });
 
-    await updateDoc(usuarioRef, {
-      diagnosticoPrincipal: diagnosticoSeleccionado,
+    await addDoc(collection(db, "usuarios", idUsuario, "historial"), {
+      tipo: "modificacion_diagnostico_ciclo",
+      titulo: "Diagnóstico del ciclo actualizado",
+      descripcion: `${tratamiento?.diagnostico || "Sin especificar"} → ${diagnosticoSeleccionado}`,
+      fecha: serverTimestamp(),
+      autor: "Profesional",
+      tratamientoId: idTratamiento,
     });
 
     setTratamiento((prev) =>
       prev ? { ...prev, diagnostico: diagnosticoSeleccionado } : prev
     );
-    setPaciente((prev) =>
-      prev ? { ...prev, diagnosticoPrincipal: diagnosticoSeleccionado } : prev
-    );
-
     setModalDiagnosticoVisible(false);
   };
 
@@ -817,7 +909,7 @@ const DetalleTratamiento = () => {
   const validarFinalizacion = () => {
     if (!tipoFinalizacion) {
       alert(
-        "Debes seleccionar el tipo de finalización (Punción o Cancelación de estímulo)."
+        "Debes seleccionar cómo finalizó esta etapa del tratamiento."
       );
       return false;
     }
@@ -882,6 +974,16 @@ const DetalleTratamiento = () => {
           comentarioFinalizacion.trim() ||
           dataActual.comentarioFinalizacion ||
           null,
+        resultadoClinico: resultadoClinico || "no_documentado",
+        resultadoDocumentado: resultadoClinico && resultadoClinico !== "no_documentado",
+        resultadosLaboratorio: {
+          ovocitosRecuperados: numOrNull(ovocitosRecuperados),
+          ovocitosMaduros: numOrNull(ovocitosMaduros),
+          embrionesObtenidos: numOrNull(embrionesObtenidos),
+          embrionesTransferidos: numOrNull(embrionesTransferidos),
+          embrionesCongelados: numOrNull(embrionesCongelados),
+        },
+        actualizadoEn: serverTimestamp(),
       };
 
       // 1) Actualizar tratamiento
@@ -920,6 +1022,9 @@ const DetalleTratamiento = () => {
             comentarioFinalizacion.trim() ||
             dataActual.comentarioFinalizacion ||
             null,
+          resultadoClinico: resultadoClinico || "no_documentado",
+          resultadoDocumentado: resultadoClinico && resultadoClinico !== "no_documentado",
+          resultadosLaboratorio: payloadUpdate.resultadosLaboratorio,
           createdAt: serverTimestamp(),
         });
       } catch (e) {
@@ -1019,16 +1124,85 @@ const DetalleTratamiento = () => {
     }
   };
 
+  const notificacionesDelTratamiento = notificaciones.filter(
+    (item) => !item.tratamientoId || item.tratamientoId === idTratamiento
+  );
+  const primarias = notificacionesDelTratamiento.filter(
+    (item) => item.nivel === "primaria" || item.tipo === "primaria"
+  );
+  const confirmadas = primarias.filter(
+    (item) => item.confirmada || item.estado === "confirmado"
+  ).length;
+  const pendientes = primarias.filter(
+    (item) => !item.confirmada && !isNotificationCancelled(item)
+  );
+  const ahoraResumen = new Date();
+  const pendientesVencidas = pendientes.filter((item) => {
+    const fecha = parseFecha(item.fechaHoraProgramada || item.fecha);
+    return fecha && fecha < ahoraResumen;
+  });
+  const proximaMedicacion = pendientes
+    .map((item) => ({ ...item, fechaResumen: parseFecha(item.fechaHoraProgramada || item.fecha) }))
+    .filter((item) => item.fechaResumen && item.fechaResumen >= ahoraResumen)
+    .sort((a, b) => a.fechaResumen - b.fechaResumen)[0];
+  const inicioResumen = parseFecha(tratamiento?.fechaInicio);
+  const diaCiclo = inicioResumen
+    ? Math.max(1, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(inicioResumen).setHours(0, 0, 0, 0)) / 86400000) + 1)
+    : "-";
+  const ultimoEstudio = estudios[0];
+
+  if (cargando) {
+    return <div className="detalle-tratamiento estado-pagina">Cargando historia del tratamiento…</div>;
+  }
+
+  if (errorCarga || !tratamiento) {
+    return (
+      <div className="detalle-tratamiento estado-pagina error-pagina">
+        <AlertTriangle size={28} />
+        <p>{errorCarga || "No encontramos el tratamiento solicitado."}</p>
+        <button onClick={cargarDatos}>Reintentar</button>
+      </div>
+    );
+  }
+
   return (
     <div className="detalle-tratamiento">
       <button className="volver" onClick={() => navigate("/tratamientos")}>
         <ArrowLeft size={18} /> Volver
       </button>
 
-      <h2>Detalle del Tratamiento</h2>
+      <div className="titulo-tratamiento">
+        <div>
+          <span className="eyebrow">Historia del ciclo</span>
+          <h2>{paciente ? `${paciente.nombre || ""} ${paciente.apellido || ""}`.trim() : "Detalle del tratamiento"}</h2>
+          <p>{tratamiento?.tipo || "Tratamiento"} · Día {diaCiclo}</p>
+        </div>
+        <span className={`estado-ciclo estado-${estadoTratamiento || "desconocido"}`}>
+          {esActivo ? "Activo" : esFinalizado ? "Finalizado" : "Estado pendiente de revisión"}
+        </span>
+      </div>
+
+      {!esActivo && !esFinalizado && (
+        <div className="alerta-integridad"><AlertTriangle size={18} /> Este tratamiento no tiene un estado reconocido. Las acciones clínicas quedaron bloqueadas para proteger los datos.</div>
+      )}
+
+      <section className="resumen-clinico" aria-label="Resumen clínico del ciclo">
+        <article><CalendarDays /><span>Día del ciclo</span><strong>{diaCiclo}</strong></article>
+        <article><Clock3 /><span>Próxima medicación</span><strong>{proximaMedicacion ? `${proximaMedicacion.medicamento || "Medicación"} · ${proximaMedicacion.fechaResumen.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Sin indicaciones futuras"}</strong></article>
+        <article className={pendientesVencidas.length ? "requiere-atencion" : ""}><AlertTriangle /><span>Sin confirmar</span><strong>{pendientesVencidas.length} vencidas</strong></article>
+        <article><Activity /><span>Último control</span><strong>{ultimoEstudio ? `${ultimoEstudio.tipoEstudio} · ${parseFecha(ultimoEstudio.fecha)?.toLocaleDateString()}` : "Sin controles"}</strong></article>
+      </section>
+
+      <nav className="navegacion-clinica" aria-label="Secciones del tratamiento">
+        <a href="#resumen"><Stethoscope size={16} /> Resumen</a>
+        <a href="#medicacion"><Pill size={16} /> Medicación</a>
+        <a href="#controles"><Activity size={16} /> Controles</a>
+        <a href="#evolucion"><History size={16} /> Evolución</a>
+        <a href="#cierre"><ClipboardList size={16} /> Cierre</a>
+      </nav>
 
       {/* Cabecera con paciente + tratamiento */}
-      <div className="cabecera-tratamiento">
+      <div className="cabecera-tratamiento" id="resumen">
         <div className="info-paciente">
           <p>
             <strong>Paciente:</strong>{" "}
@@ -1084,7 +1258,14 @@ const DetalleTratamiento = () => {
       </div>
 
       {/* MEDICAMENTOS */}
-      <h3>Medicamentos</h3>
+      <div className="encabezado-seccion" id="medicacion">
+        <div><span className="eyebrow">Plan y adherencia</span><h3>Medicación</h3></div>
+        <div className="resumen-adherencia">
+          <span><strong>{primarias.length}</strong> indicaciones</span>
+          <span className="confirmado"><strong>{confirmadas}</strong> confirmadas</span>
+          <span className={pendientesVencidas.length ? "vencido" : ""}><strong>{pendientesVencidas.length}</strong> vencidas</span>
+        </div>
+      </div>
 
       {esActivo && (
         <button
@@ -1287,6 +1468,7 @@ const DetalleTratamiento = () => {
               <input
                 type="number"
                 min="1"
+                max="90"
                 value={dias}
                 onChange={(e) => setDias(e.target.value)}
               />
@@ -1368,6 +1550,7 @@ const DetalleTratamiento = () => {
               <input
                 type="number"
                 min="1"
+                max="90"
                 value={nuevoDias}
                 onChange={(e) => setNuevoDias(e.target.value)}
               />
@@ -1459,7 +1642,9 @@ const DetalleTratamiento = () => {
       )}
 
       {/* ESTUDIOS CLÍNICOS */}
-      <h3>Estudios clínicos</h3>
+      <div className="encabezado-seccion" id="controles">
+        <div><span className="eyebrow">Seguimiento clínico</span><h3>Controles y estudios</h3></div>
+      </div>
 
       {esActivo && (
         <button
@@ -1511,8 +1696,12 @@ const DetalleTratamiento = () => {
                     {est.progesterona != null && (
                       <li>Progesterona: {est.progesterona}</li>
                     )}
+                    {est.laboratorio && <li>Laboratorio: {est.laboratorio}</li>}
+                    {est.unidadHormonal && <li>Unidad informada: {est.unidadHormonal}</li>}
                   </>
                 )}
+                {est.espesorEndometrialMm != null && <li>Endometrio: {est.espesorEndometrialMm} mm</li>}
+                {est.patronEndometrial && <li>Patrón endometrial: {est.patronEndometrial}</li>}
               </ul>
 
               {est.comentarios && (
@@ -1522,7 +1711,7 @@ const DetalleTratamiento = () => {
               {esActivo && (
                 <button
                   className="btn-eliminar-estudio"
-                  onClick={() => eliminarEstudio(index)}
+                  onClick={() => eliminarEstudio(est)}
                 >
                   <Trash size={14} /> Eliminar
                 </button>
@@ -1626,6 +1815,14 @@ const DetalleTratamiento = () => {
                     onChange={(e) => setProgesterona(e.target.value)}
                   />
                 </label>
+                <label>
+                  Laboratorio (opcional):
+                  <input type="text" value={laboratorio} onChange={(e) => setLaboratorio(e.target.value)} />
+                </label>
+                <label>
+                  Unidad / referencia informada (opcional):
+                  <input type="text" value={unidadHormonal} onChange={(e) => setUnidadHormonal(e.target.value)} placeholder="Ej. pg/mL · según laboratorio" />
+                </label>
               </>
             )}
 
@@ -1667,6 +1864,14 @@ const DetalleTratamiento = () => {
                     onChange={(e) => setFoliculos(e.target.value)}
                   />
                 </label>
+                <label>
+                  Espesor endometrial (mm):
+                  <input type="number" min="0" step="0.1" value={espesorEndometrial} onChange={(e) => setEspesorEndometrial(e.target.value)} />
+                </label>
+                <label>
+                  Patrón endometrial:
+                  <input type="text" value={patronEndometrial} onChange={(e) => setPatronEndometrial(e.target.value)} placeholder="Ej. trilaminar" />
+                </label>
               </>
             )}
 
@@ -1686,9 +1891,18 @@ const DetalleTratamiento = () => {
         </div>
       )}
 
+      <section className="evolucion-clinica" id="evolucion">
+        <div className="encabezado-seccion"><div><span className="eyebrow">Lectura cronológica</span><h3>Evolución del ciclo</h3></div></div>
+        <div className="linea-tiempo">
+          {inicioResumen && <article><i /><div><strong>Inicio del tratamiento</strong><span>{inicioResumen.toLocaleDateString()} · {tratamiento.tipo || "Tratamiento"}</span></div></article>}
+          {estudios.slice().reverse().map((est, index) => <article key={est.idRegistro || `evolucion-${index}`}><i /><div><strong>{est.tipoEstudio || "Control clínico"}</strong><span>{parseFecha(est.fecha)?.toLocaleDateString() || "Sin fecha"}{est.subtipo ? ` · ${est.subtipo}` : ""}</span>{est.comentarios && <p>{est.comentarios}</p>}</div></article>)}
+          {esFinalizado && <article className="hito-final"><i /><div><strong>Tratamiento finalizado</strong><span>{parseFecha(tratamiento.fechaFin)?.toLocaleDateString() || "Fecha no registrada"} · {tratamiento.tipoFinalizacion || "Cierre clínico"}</span></div></article>}
+        </div>
+      </section>
+
       {/* BOTÓN FINALIZAR TRATAMIENTO */}
       {esActivo && (
-        <div className="footer-finalizar">
+        <div className="footer-finalizar" id="cierre">
           <button
             className="aplicar btn-finalizar-tratamiento"
             onClick={abrirModalFinalizar}
@@ -1754,6 +1968,24 @@ const DetalleTratamiento = () => {
                   ))}
                 </select>
               </label>
+            )}
+
+            <label>
+              Resultado clínico a la fecha:
+              <select value={resultadoClinico} onChange={(e) => setResultadoClinico(e.target.value)} disabled={guardandoFinalizacion}>
+                {RESULTADOS_CLINICOS.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
+              </select>
+            </label>
+
+            {tipoFinalizacion !== "cancelacion_estimulo" && (
+              <div className="campos-resultados">
+                <p>Resultados del laboratorio embrionario <small>(opcionales)</small></p>
+                <label>Ovocitos recuperados:<input type="number" min="0" value={ovocitosRecuperados} onChange={(e) => setOvocitosRecuperados(e.target.value)} /></label>
+                <label>Ovocitos maduros:<input type="number" min="0" value={ovocitosMaduros} onChange={(e) => setOvocitosMaduros(e.target.value)} /></label>
+                <label>Embriones obtenidos:<input type="number" min="0" value={embrionesObtenidos} onChange={(e) => setEmbrionesObtenidos(e.target.value)} /></label>
+                <label>Embriones transferidos:<input type="number" min="0" value={embrionesTransferidos} onChange={(e) => setEmbrionesTransferidos(e.target.value)} /></label>
+                <label>Embriones congelados:<input type="number" min="0" value={embrionesCongelados} onChange={(e) => setEmbrionesCongelados(e.target.value)} /></label>
+              </div>
             )}
 
             <label>

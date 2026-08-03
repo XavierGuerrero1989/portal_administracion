@@ -1,5 +1,40 @@
 .detalle-tratamiento {
-  padding: 2rem;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  max-width: 1480px;
+  margin: 0 auto;
+  color: #172033;
+
+  .eyebrow { color: #7928ca; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+
+  .titulo-tratamiento {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem;
+    h2 { margin: .2rem 0; font-size: clamp(1.55rem, 3vw, 2.2rem); color: #172033; }
+    p { color: #69748a; }
+  }
+
+  .estado-ciclo { padding: .55rem .9rem; border-radius: 999px; font-weight: 750; font-size: .86rem; background: #eef1f6; color: #536078; }
+  .estado-activo { background: #e7f8f3; color: #11775e; }
+  .estado-finalizado { background: #f0e9ff; color: #6822ad; }
+  .alerta-integridad { display: flex; gap: .65rem; padding: .9rem 1rem; margin-bottom: 1rem; border-radius: 12px; background: #fff5df; color: #855b00; border: 1px solid #f2d48e; }
+
+  .resumen-clinico {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; margin-bottom: 1rem;
+    article { min-height: 112px; padding: 1rem; background: #fff; border: 1px solid #e2e7f0; border-radius: 16px; box-shadow: 0 8px 28px rgba(34, 27, 58, .06); display: grid; grid-template-columns: auto 1fr; gap: .5rem .7rem; align-content: center; }
+    svg { color: #36bcd1; grid-row: span 2; }
+    span { color: #748097; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+    strong { color: #182137; font-size: .95rem; line-height: 1.35; }
+    .requiere-atencion { border-color: #f1b8aa; background: #fff9f7; svg, strong { color: #b7452f; } }
+  }
+
+  .navegacion-clinica { position: sticky; top: 0; z-index: 20; display: flex; gap: .35rem; overflow-x: auto; margin: 1rem 0 1.25rem; padding: .45rem; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); border: 1px solid #e2e7f0; border-radius: 14px; box-shadow: 0 6px 22px rgba(31,35,48,.06); }
+  .navegacion-clinica a { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; padding: .65rem .85rem; color: #505c72; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: .86rem; }
+  .navegacion-clinica a:hover { color: #7223bd; background: #f5edff; }
+
+  .encabezado-seccion { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-top: 2.2rem; scroll-margin-top: 90px; h3 { margin: .2rem 0 .3rem; color: #172033; } }
+  .resumen-adherencia { display: flex; flex-wrap: wrap; gap: .5rem; span { padding: .45rem .7rem; border-radius: 999px; background: #f2f4f8; color: #59667c; font-size: .8rem; } .confirmado { background: #e8f8f3; color: #14775f; } .vencido { background: #fff0ed; color: #ae3f2b; } }
+
+  &.estado-pagina { min-height: 50vh; display: flex; align-items: center; justify-content: center; color: #69748a; }
+  &.error-pagina { flex-direction: column; gap: .7rem; button { border: 0; border-radius: 10px; padding: .65rem 1rem; background: #7928ca; color: #fff; cursor: pointer; } }
 
   .volver {
     background: none;
@@ -45,7 +80,9 @@
     flex-wrap: wrap;
     gap: 2rem;
     margin-bottom: 1.5rem;
-    background: #fafafa;
+    background: #fff;
+    border: 1px solid #e2e7f0;
+    scroll-margin-top: 90px;
     border-radius: 10px;
     padding: 1rem 1.5rem;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
@@ -79,10 +116,10 @@
   }
 
   .acordeon {
-    border: 1px solid #ddd;
+    border: 1px solid #e2e7f0;
     border-radius: 8px;
     margin-top: 1rem;
-    background-color: #fafafa;
+    background-color: #fff;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
     .acordeon-header {
@@ -92,7 +129,7 @@
       justify-content: space-between;
       align-items: center;
       font-weight: 600;
-      background-color: #f1f1f1;
+      background-color: #f7f8fb;
       border-radius: 8px;
 
       .info {
@@ -330,8 +367,8 @@
   }
 
   .estudios-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1rem;
     margin-top: 1rem;
   }
@@ -341,7 +378,8 @@
     border-radius: 1rem;
     padding: 1rem;
     box-shadow: 0 0 10px #00000010;
-    width: 260px;
+    width: auto;
+    border: 1px solid #e2e7f0;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -406,6 +444,28 @@
     justify-content: flex-end;
   }
 
+  .evolucion-clinica {
+    scroll-margin-top: 90px;
+    margin-top: 1.5rem;
+    padding: clamp(1.25rem, 2.5vw, 2rem);
+    background: #fff;
+    border: 1px solid #e2e7f0;
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(34, 27, 58, .06);
+
+    .encabezado-seccion { margin-top: 0; }
+  }
+  .linea-tiempo { position: relative; margin: .75rem 0 1.5rem; padding-left: 1.2rem; border-left: 2px solid #e1d2f2;
+    article { position: relative; padding: 0 0 1.15rem 1rem; }
+    i { position: absolute; left: -1.62rem; top: .2rem; width: .72rem; height: .72rem; border-radius: 50%; background: #7c2bc5; box-shadow: 0 0 0 4px #f3eaff; }
+    div { display: flex; flex-direction: column; gap: .18rem; }
+    strong { color: #222b40; }
+    span, p { color: #68758c; font-size: .88rem; }
+    .hito-final i { background: #28a784; box-shadow: 0 0 0 4px #e3f7f1; }
+  }
+
+  .campos-resultados { display: grid; grid-template-columns: 1fr 1fr; gap: .1rem .7rem; margin: .35rem 0 1rem; padding: .8rem; border-radius: 10px; background: #f7f8fb; p { grid-column: 1 / -1; font-weight: 700; color: #3d485e; } }
+
   .btn-finalizar-tratamiento {
     background-color: #ff7043;
     color: #fff;
@@ -434,6 +494,8 @@
   }
 
   @media (max-width: 768px) {
+    .resumen-clinico { grid-template-columns: 1fr 1fr; }
+    .titulo-tratamiento, .encabezado-seccion { align-items: flex-start; flex-direction: column; }
     .cabecera-tratamiento {
       flex-direction: column;
     }
@@ -445,5 +507,11 @@
     .footer-finalizar {
       justify-content: center;
     }
+  }
+
+  @media (max-width: 520px) {
+    .resumen-clinico { grid-template-columns: 1fr; }
+    .campos-resultados { grid-template-columns: 1fr; }
+    .evolucion-clinica { padding: 1rem; }
   }
 }

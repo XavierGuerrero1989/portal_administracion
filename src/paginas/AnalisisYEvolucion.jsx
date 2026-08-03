@@ -146,7 +146,7 @@ const AnalisisYEvolucion = () => {
         }
 
         // Normalizamos para tener siempre un id
-        const data = estudiosArrayRaw.map((est, idx) => ({
+        const data = estudiosArrayRaw.filter((est) => !est?.anuladoEn).map((est, idx) => ({
           id: est.id || `est_${idx}`,
           ...est,
         }));
