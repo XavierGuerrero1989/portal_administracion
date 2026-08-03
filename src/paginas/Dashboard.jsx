@@ -1,434 +1,477 @@
 import "./Dashboard.scss";
 
-import React, { useEffect, useState } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  CalendarDays,
+  ChevronRight,
+  ClipboardPlus,
+  Clock3,
+  FileWarning,
+  Pill,
+  Plus,
+  Stethoscope,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import { collection, doc, getDocs } from "firebase/firestore";
 
-import DistribucionEdadesChart from "../componentes/DistribucionEdadesChart";
 import Loader from "../componentes/Loader";
-import PacientesActivosResumen from "../componentes/PacientesActivosResumen";
-import TratamientosDelMes from "../componentes/TratamientosDelMes";
-import TurnosHoy from "../componentes/TurnosHoy";
 import { db } from "../firebase";
+import { normalizeRole, parseLocalDate } from "../utils/domain";
 import { useNavigate } from "react-router-dom";
-import { normalizeRole } from "../utils/domain";
 
-const parseFechaFlexible = (valor) => {
+const parseFecha = (valor) => {
   if (!valor) return null;
-
-  // Timestamp Firestore
-  if (typeof valor === "object") {
-    if (typeof valor.toDate === "function") return valor.toDate();
-    if (typeof valor.seconds === "number") return new Date(valor.seconds * 1000);
-  }
-
-  // String o Date
-  if (valor instanceof Date) {
-    return isNaN(valor.getTime()) ? null : valor;
-  }
-
-  if (typeof valor === "string") {
-    // 1) Intento directo (ISO, etc.)
-    let f = new Date(valor);
-    if (!isNaN(f.getTime())) return f;
-
-    // 2) Formato dd/mm/yyyy o dd-mm-yyyy
-    const m = valor.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-    if (m) {
-      const d = parseInt(m[1], 10);
-      const mes = parseInt(m[2], 10) - 1;
-      const anio = parseInt(m[3], 10);
-      f = new Date(anio, mes, d);
-      if (!isNaN(f.getTime())) return f;
-    }
-  }
-
-  return null;
+  if (valor instanceof Date) return Number.isNaN(valor.getTime()) ? null : valor;
+  if (typeof valor?.toDate === "function") return valor.toDate();
+  if (typeof valor?.seconds === "number") return new Date(valor.seconds * 1000);
+  return parseLocalDate(valor);
 };
 
-const esDeEsteMes = (fecha, mesActual, añoActual) => {
-  if (!fecha || !(fecha instanceof Date) || isNaN(fecha.getTime())) return false;
-  return fecha.getMonth() === mesActual && fecha.getFullYear() === añoActual;
+const inicioDelDia = (fecha = new Date()) => {
+  const resultado = new Date(fecha);
+  resultado.setHours(0, 0, 0, 0);
+  return resultado;
+};
+
+const finDelDia = (fecha = new Date()) => {
+  const resultado = new Date(fecha);
+  resultado.setHours(23, 59, 59, 999);
+  return resultado;
+};
+
+const nombrePaciente = (paciente) =>
+  `${paciente.nombre || ""} ${paciente.apellido || ""}`.trim() ||
+  "Paciente sin nombre";
+
+const estaCancelada = (item) => {
+  const estado = String(item.estado || "").toLowerCase();
+  return item.cancelada === true || estado.includes("cancelad");
+};
+
+const estaConfirmada = (item) => {
+  const estado = String(item.estado || "").toLowerCase();
+  return item.confirmada === true || estado === "confirmado" || estado === "confirmada";
+};
+
+const obtenerEstudiosPendientes = (tratamiento) => {
+  const fuentes = [
+    tratamiento.estudiosPendientes,
+    tratamiento.estudiosSolicitados,
+    tratamiento.estudiosClinicos,
+  ];
+
+  return fuentes
+    .flatMap((fuente) => (Array.isArray(fuente) ? fuente : []))
+    .filter((estudio) => {
+      if (!estudio || typeof estudio !== "object") return false;
+      const estado = String(estudio.estado || "").toLowerCase();
+      const fechaLimite = parseFecha(
+        estudio.fechaVencimiento || estudio.vencimiento || estudio.fechaLimite
+      );
+      return estado === "pendiente" || estado === "vencido" || Boolean(fechaLimite);
+    });
 };
 
 const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-
-  const [tratamientosIniciados, setTratamientosIniciados] = useState(0);
-  const [tratamientosFinalizados, setTratamientosFinalizados] = useState(0);
-  const [pacientesActivos, setPacientesActivos] = useState(0);
-  const [drogaStats, setDrogaStats] = useState({});
-
-  const [selectedWidget, setSelectedWidget] = useState(null);
-  const [usuariosDocs, setUsuariosDocs] = useState([]);
-
-  const [tratamientosFinalizadosLista, setTratamientosFinalizadosLista] =
-    useState([]);
-
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [datos, setDatos] = useState({
+    turnosHoy: [],
+    tratamientosActivos: [],
+    pacientesNuevas: [],
+    medicacionesSinConfirmar: [],
+    estudiosPendientes: [],
+    seguimientos: [],
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
+    const cargarDashboard = async () => {
       try {
         const usuariosSnapshot = await getDocs(collection(db, "usuarios"));
-        const docs = usuariosSnapshot.docs;
+        const pacientes = usuariosSnapshot.docs
+          .map((item) => ({ id: item.id, ...item.data() }))
+          .filter((item) => normalizeRole(item) === "paciente");
 
-        // Solo pacientes (no médicos)
-        const pacientesDocs = docs.filter(
-          (docu) => normalizeRole(docu.data()) === "paciente"
-        );
-        setUsuariosDocs(pacientesDocs);
+        const ahora = new Date();
+        const hoyInicio = inicioDelDia(ahora);
+        const hoyFin = finDelDia(ahora);
+        const haceSieteDias = new Date(hoyInicio);
+        haceSieteDias.setDate(haceSieteDias.getDate() - 7);
 
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const mesActual = hoy.getMonth();
-        const añoActual = hoy.getFullYear();
+        const turnosHoy = [];
+        const tratamientosActivos = [];
+        const medicacionesSinConfirmar = [];
+        const estudiosPendientes = [];
+        const seguimientos = [];
 
-        // 1) Armar una lista PLANA de todos los tratamientos
-        const todosLosTratamientos = [];
+        await Promise.all(
+          pacientes.map(async (paciente) => {
+            const usuarioRef = doc(db, "usuarios", paciente.id);
+            const [turnosSnapshot, tratamientosSnapshot, notificacionesSnapshot] =
+              await Promise.all([
+                getDocs(collection(usuarioRef, "citas")),
+                getDocs(collection(usuarioRef, "tratamientos")),
+                getDocs(collection(usuarioRef, "notificaciones")),
+              ]);
 
-        for (const userDoc of pacientesDocs) {
-          const userRef = doc(db, "usuarios", userDoc.id);
-          const userData = userDoc.data();
+            const turnosVigentes = turnosSnapshot.docs
+              .map((item) => ({ id: item.id, ...item.data() }))
+              .filter((turno) => !estaCancelada(turno))
+              .map((turno) => ({ ...turno, fechaNormalizada: parseFecha(turno.fecha) }))
+              .filter((turno) => turno.fechaNormalizada);
 
-          const tratamientosSnapshot = await getDocs(
-            collection(userRef, "tratamientos")
-          );
-
-          tratamientosSnapshot.forEach((tratDoc) => {
-            // ⚠️ YA NO IGNORAMOS "activo": lo tratamos como tratamiento real
-            const data = tratDoc.data();
-
-            const fechaInicio =
-              parseFechaFlexible(data.fechaInicio) ||
-              parseFechaFlexible(data.createdAt) ||
-              parseFechaFlexible(data.fecha);
-
-            const fechaFin = parseFechaFlexible(data.fechaFin);
-
-            const estadoLower = String(data.estado || "").toLowerCase();
-
-            // Normalizamos medicamentosPlanificados a array SIEMPRE
-            let meds = [];
-            if (data.medicamentosPlanificados) {
-              if (Array.isArray(data.medicamentosPlanificados)) {
-                meds = data.medicamentosPlanificados.filter(
-                  (m) => m && typeof m === "object"
-                );
-              } else if (
-                data.medicamentosPlanificados &&
-                typeof data.medicamentosPlanificados === "object"
+            turnosVigentes.forEach((turno) => {
+              if (
+                turno.fechaNormalizada >= hoyInicio &&
+                turno.fechaNormalizada <= hoyFin
               ) {
-                meds = [data.medicamentosPlanificados];
+                turnosHoy.push({
+                  ...turno,
+                  pacienteId: paciente.id,
+                  paciente: nombrePaciente(paciente),
+                });
               }
-            }
-
-            todosLosTratamientos.push({
-              pacienteId: userDoc.id,
-              nombre: userData.nombre || "",
-              apellido: userData.apellido || "",
-              dni: userData.dni || "",
-              tratamientoId: tratDoc.id,
-              fechaInicio,
-              fechaFin,
-              estadoLower,
-              tipo: data.tipoTratamiento || data.tipo || "-",
-              medicamentosPlanificados: meds,
-              tipoFinalizacion: data.tipoFinalizacion || null,
-              motivoCancelacion: data.motivoCancelacion || null,
-              comentarioFinalizacion: data.comentarioFinalizacion || null,
             });
-          });
-        }
 
-        // 2) Cálculos a partir de la lista plana
+            const tieneProximoTurno = turnosVigentes.some(
+              (turno) => turno.fechaNormalizada > hoyFin
+            );
 
-        // a) Tratamientos iniciados este mes
-        const iniciados = todosLosTratamientos.filter((t) =>
-          esDeEsteMes(t.fechaInicio, mesActual, añoActual)
-        ).length;
+            tratamientosSnapshot.docs.forEach((item) => {
+              const tratamiento = item.data();
+              const estado = String(tratamiento.estado || "").toLowerCase();
+              const esActivo = estado === "activo" || (!estado && item.id === "activo");
+              if (!esActivo) return;
 
-        // b) Tratamientos finalizados este mes (+ detalle)
-        const finalizadosLista = todosLosTratamientos.filter((t) => {
-          const esFinalizado = t.estadoLower === "finalizado";
-          return esFinalizado && esDeEsteMes(t.fechaFin, mesActual, añoActual);
-        });
+              const tratamientoNormalizado = {
+                ...tratamiento,
+                pacienteId: paciente.id,
+                tratamientoId: item.id,
+                paciente: nombrePaciente(paciente),
+                tipo: tratamiento.tipoTratamiento || tratamiento.tipo || "Tratamiento",
+                fechaInicio: parseFecha(tratamiento.fechaInicio || tratamiento.creadoEn),
+              };
+              tratamientosActivos.push(tratamientoNormalizado);
 
-        const finalizados = finalizadosLista.length;
+              obtenerEstudiosPendientes(tratamiento).forEach((estudio, index) => {
+                const fechaLimite = parseFecha(
+                  estudio.fechaVencimiento || estudio.vencimiento || estudio.fechaLimite
+                );
+                const estado = String(estudio.estado || "pendiente").toLowerCase();
+                estudiosPendientes.push({
+                  ...estudio,
+                  id: `${item.id}-${index}`,
+                  pacienteId: paciente.id,
+                  tratamientoId: item.id,
+                  paciente: nombrePaciente(paciente),
+                  fechaLimite,
+                  vencido: estado === "vencido" || Boolean(fechaLimite && fechaLimite < hoyInicio),
+                });
+              });
 
-        // c) Pacientes activos (al menos un tratamiento con estado "activo")
-        const pacientesActivosSet = new Set(
-          todosLosTratamientos
-            .filter((t) => t.estadoLower === "activo")
-            .map((t) => t.pacienteId)
+              if (!tieneProximoTurno) {
+                seguimientos.push({
+                  pacienteId: paciente.id,
+                  tratamientoId: item.id,
+                  paciente: nombrePaciente(paciente),
+                  motivo: "Tratamiento activo sin próximo turno programado",
+                });
+              }
+            });
+
+            notificacionesSnapshot.docs.forEach((item) => {
+              const notificacion = item.data();
+              const fecha = parseFecha(
+                notificacion.fechaHoraProgramada || notificacion.fecha
+              );
+              if (
+                !fecha ||
+                fecha > ahora ||
+                fecha < haceSieteDias ||
+                estaCancelada(notificacion) ||
+                estaConfirmada(notificacion)
+              ) {
+                return;
+              }
+
+              medicacionesSinConfirmar.push({
+                ...notificacion,
+                id: item.id,
+                pacienteId: paciente.id,
+                paciente: nombrePaciente(paciente),
+                fecha,
+              });
+            });
+          })
         );
-        const activos = pacientesActivosSet.size;
 
-        // d) Drogas usadas este mes (solo medicamentosPlanificados)
-        const drogas = {};
+        turnosHoy.sort((a, b) =>
+          `${a.hora || "99:99"}`.localeCompare(`${b.hora || "99:99"}`)
+        );
+        tratamientosActivos.sort(
+          (a, b) => (b.fechaInicio?.getTime() || 0) - (a.fechaInicio?.getTime() || 0)
+        );
+        medicacionesSinConfirmar.sort((a, b) => b.fecha - a.fecha);
+        estudiosPendientes.sort((a, b) => Number(b.vencido) - Number(a.vencido));
 
-        todosLosTratamientos.forEach((t) => {
-          const esActivo = t.estadoLower === "activo";
-          const inicioEsteMes = esDeEsteMes(t.fechaInicio, mesActual, añoActual);
-          const finEsteMes = esDeEsteMes(t.fechaFin, mesActual, añoActual);
+        const pacientesNuevas = pacientes
+          .map((paciente) => ({
+            ...paciente,
+            fechaAlta: parseFecha(
+              paciente.createdAt || paciente.creadoEn || paciente.fechaRegistro
+            ),
+          }))
+          .filter(
+            (paciente) =>
+              paciente.fechaAlta &&
+              paciente.fechaAlta >= haceSieteDias &&
+              paciente.fechaAlta <= ahora
+          )
+          .sort((a, b) => b.fechaAlta - a.fechaAlta);
 
-          // Consideramos drogas de:
-          // - tratamientos activos
-          // - o tratamientos iniciados este mes
-          // - o tratamientos finalizados este mes
-          if (!esActivo && !inicioEsteMes && !finEsteMes) return;
-
-          t.medicamentosPlanificados.forEach((med) => {
-            const nombreDroga =
-              med.nombre ||
-              med.medicamento ||
-              med.nombreComercial ||
-              med.droga ||
-              "Desconocida";
-
-            const diasMed =
-              Number(
-                med.duracionDias ??
-                  med.duracion ??
-                  med.dias ??
-                  1
-              ) || 1;
-
-            drogas[nombreDroga] = (drogas[nombreDroga] || 0) + diasMed;
-          });
+        setDatos({
+          turnosHoy,
+          tratamientosActivos,
+          pacientesNuevas,
+          medicacionesSinConfirmar,
+          estudiosPendientes,
+          seguimientos,
         });
-
-        // 3) Actualizar estados
-        setTratamientosIniciados(iniciados);
-        setTratamientosFinalizados(finalizados);
-        setPacientesActivos(activos);
-        setDrogaStats(drogas);
-        setTratamientosFinalizadosLista(finalizadosLista);
-      } catch (error) {
-        console.error("Error cargando dashboard:", error);
+      } catch (err) {
+        console.error("Error cargando dashboard operativo:", err);
+        setError("No se pudo cargar toda la información operativa. Intentá nuevamente.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    cargarDashboard();
   }, []);
+
+  const tareas = useMemo(() => {
+    const medicaciones = datos.medicacionesSinConfirmar.map((item) => ({
+      id: `med-${item.pacienteId}-${item.id}`,
+      prioridad: "alta",
+      tipo: "Medicación",
+      titulo: `${item.paciente} no confirmó ${item.medicamento || "una medicación"}`,
+      detalle: item.fecha.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      onClick: () => navigate(`/pacientes/${item.pacienteId}/historial`),
+    }));
+
+    const estudios = datos.estudiosPendientes.map((item) => ({
+      id: `est-${item.pacienteId}-${item.id}`,
+      prioridad: item.vencido ? "alta" : "media",
+      tipo: item.vencido ? "Estudio vencido" : "Estudio pendiente",
+      titulo: `${item.paciente} · ${item.tipoEstudio || item.nombre || "Estudio"}`,
+      detalle: item.fechaLimite
+        ? `Fecha límite ${item.fechaLimite.toLocaleDateString("es-AR")}`
+        : "Pendiente de completar",
+      onClick: () =>
+        navigate(`/tratamientos/${item.pacienteId}/${item.tratamientoId}`),
+    }));
+
+    const seguimientos = datos.seguimientos.map((item) => ({
+      id: `seg-${item.pacienteId}-${item.tratamientoId}`,
+      prioridad: "media",
+      tipo: "Seguimiento",
+      titulo: item.paciente,
+      detalle: item.motivo,
+      onClick: () =>
+        navigate(`/tratamientos/${item.pacienteId}/${item.tratamientoId}`),
+    }));
+
+    return [...medicaciones, ...estudios, ...seguimientos];
+  }, [datos, navigate]);
 
   if (loading) return <Loader />;
 
-  // === helpers drogas ===
-  const drogasArray = Object.entries(drogaStats);
-
-  const totalAplicaciones = drogasArray.reduce(
-    (acc, [, total]) => acc + (Number(total) || 0),
-    0
-  );
-
-  const drogasOrdenadas = [...drogasArray].sort(
-    (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
-  );
-
-  const formatearFecha = (d) => {
-    if (!d || !(d instanceof Date) || isNaN(d.getTime())) return "-";
-    return d.toLocaleDateString();
-  };
-
-  const formatearFinalizacion = (t) => {
-    const tipo = (t.tipoFinalizacion || "").toLowerCase();
-
-    if (!tipo) return "-";
-
-    if (tipo === "puncion" || tipo === "punción") {
-      return "Punción";
-    }
-
-    if (tipo === "cancelacion" || tipo === "cancelación") {
-      let texto = "Cancelación de estímulo";
-      if (t.motivoCancelacion) {
-        texto += ` – ${t.motivoCancelacion}`;
-      }
-      return texto;
-    }
-
-    // fallback genérico
-    return t.tipoFinalizacion;
-  };
-
   return (
-    <div className="dashboard">
-      <h2>Resumen general</h2>
+    <main className="dashboard-operativo">
+      <header className="dashboard-hero">
+        <div>
+          <span className="dashboard-eyebrow">Panel del día</span>
+          <h1>¿Qué requiere atención hoy?</h1>
+          <p>
+            {new Date().toLocaleDateString("es-AR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+        </div>
+        <div className="dashboard-quick-actions" aria-label="Accesos rápidos">
+          <button onClick={() => navigate("/pacientes/nuevo")}>
+            <UserPlus size={18} /> Nueva paciente
+          </button>
+          <button onClick={() => navigate("/turnos")}>
+            <CalendarDays size={18} /> Agendar turno
+          </button>
+          <button onClick={() => navigate("/pacientes")}>
+            <ClipboardPlus size={18} /> Iniciar tratamiento
+          </button>
+        </div>
+      </header>
 
-      <div className="acciones-dashboard">
-        <button
-          className="boton-nuevo"
-          onClick={() => navigate("/pacientes/nuevo")}
-        >
-          <span className="icono">+</span> Nuevo paciente
+      {error && <div className="dashboard-error">{error}</div>}
+
+      <section className="dashboard-kpis" aria-label="Resumen operativo">
+        <button className="kpi-card kpi-cyan" onClick={() => navigate("/turnos")}>
+          <span className="kpi-icon"><CalendarDays size={20} /></span>
+          <span className="kpi-value">{datos.turnosHoy.length}</span>
+          <span className="kpi-label">Turnos de hoy</span>
+          <ChevronRight size={18} />
         </button>
+        <button className="kpi-card kpi-violet" onClick={() => navigate("/tratamientos")}>
+          <span className="kpi-icon"><Activity size={20} /></span>
+          <span className="kpi-value">{datos.tratamientosActivos.length}</span>
+          <span className="kpi-label">Tratamientos activos</span>
+          <ChevronRight size={18} />
+        </button>
+        <button className="kpi-card kpi-soft" onClick={() => navigate("/pacientes")}>
+          <span className="kpi-icon"><Users size={20} /></span>
+          <span className="kpi-value">{datos.pacientesNuevas.length}</span>
+          <span className="kpi-label">Nuevas pacientes · 7 días</span>
+          <ChevronRight size={18} />
+        </button>
+        <button className="kpi-card kpi-warning" onClick={() => document.getElementById("pendientes")?.scrollIntoView({ behavior: "smooth" })}>
+          <span className="kpi-icon"><AlertTriangle size={20} /></span>
+          <span className="kpi-value">{tareas.length}</span>
+          <span className="kpi-label">Tareas pendientes</span>
+          <ChevronRight size={18} />
+        </button>
+      </section>
+
+      <div className="dashboard-columns">
+        <section className="dashboard-panel agenda-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">Agenda</span>
+              <h2>Turnos de hoy</h2>
+            </div>
+            <button className="panel-link" onClick={() => navigate("/turnos")}>Ver agenda</button>
+          </div>
+          {datos.turnosHoy.length === 0 ? (
+            <div className="empty-state">
+              <CalendarDays size={28} />
+              <strong>No hay turnos programados para hoy</strong>
+              <span>Podés crear uno desde “Agendar turno”.</span>
+            </div>
+          ) : (
+            <div className="agenda-list">
+              {datos.turnosHoy.map((turno) => (
+                <button
+                  className="agenda-item"
+                  key={`${turno.pacienteId}-${turno.id}`}
+                  onClick={() => navigate(`/pacientes/${turno.pacienteId}/perfil`)}
+                >
+                  <span className="agenda-time">{turno.hora || "Sin hora"}</span>
+                  <span className="agenda-info">
+                    <strong>{turno.paciente}</strong>
+                    <small>{turno.motivo || "Consulta"}</small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="dashboard-panel" id="pendientes">
+          <div className="panel-heading">
+            <div>
+              <span className="panel-kicker">Prioridades</span>
+              <h2>Alertas y tareas pendientes</h2>
+            </div>
+            <span className="panel-count">{tareas.length}</span>
+          </div>
+          {tareas.length === 0 ? (
+            <div className="empty-state success">
+              <Stethoscope size={28} />
+              <strong>No hay pendientes detectados</strong>
+              <span>La información operativa está al día.</span>
+            </div>
+          ) : (
+            <div className="task-list">
+              {tareas.slice(0, 8).map((tarea) => (
+                <button className="task-item" key={tarea.id} onClick={tarea.onClick}>
+                  <span className={`priority-dot ${tarea.prioridad}`} />
+                  <span className="task-info">
+                    <small>{tarea.tipo}</small>
+                    <strong>{tarea.titulo}</strong>
+                    <span>{tarea.detalle}</span>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+              {tareas.length > 8 && (
+                <p className="task-overflow">Hay {tareas.length - 8} tareas adicionales.</p>
+              )}
+            </div>
+          )}
+        </section>
       </div>
 
-      <div className="widgets">
-        <div className="widget" onClick={() => setSelectedWidget("iniciados")}>
-          Tratamientos iniciados este mes: {tratamientosIniciados}
-        </div>
-
-        <div
-          className="widget"
-          onClick={() => setSelectedWidget("finalizados")}
-        >
-          Tratamientos finalizados este mes: {tratamientosFinalizados}
-        </div>
-
-        <div className="widget" onClick={() => setSelectedWidget("activos")}>
-          Pacientes activos: {pacientesActivos}
-        </div>
-
-        <div className="widget" onClick={() => setSelectedWidget("drogas")}>
-          Drogas utilizadas este mes: {Object.keys(drogaStats).length}
-        </div>
-      </div>
-
-      <div className="widget-detail">
-        {selectedWidget === "iniciados" && (
-          <TratamientosDelMes usuariosDocs={usuariosDocs} />
-        )}
-
-        {selectedWidget === "finalizados" && (
+      <section className="dashboard-panel treatments-panel">
+        <div className="panel-heading">
           <div>
-            <h3>Tratamientos finalizados este mes</h3>
-            <p>
-              Total: <strong>{tratamientosFinalizados}</strong>
-            </p>
-
-            {tratamientosFinalizadosLista.length === 0 ? (
-              <p
-                style={{
-                  fontSize: "0.9rem",
-                  color: "#666",
-                  marginTop: "0.5rem",
-                }}
+            <span className="panel-kicker">En curso</span>
+            <h2>Tratamientos activos</h2>
+          </div>
+          <button className="panel-link" onClick={() => navigate("/tratamientos")}>Ver todos</button>
+        </div>
+        {datos.tratamientosActivos.length === 0 ? (
+          <div className="empty-state compact">
+            <Activity size={26} />
+            <strong>No hay tratamientos activos</strong>
+          </div>
+        ) : (
+          <div className="treatment-grid">
+            {datos.tratamientosActivos.slice(0, 6).map((tratamiento) => (
+              <button
+                className="treatment-card"
+                key={`${tratamiento.pacienteId}-${tratamiento.tratamientoId}`}
+                onClick={() => navigate(`/tratamientos/${tratamiento.pacienteId}/${tratamiento.tratamientoId}`)}
               >
-                No hay tratamientos finalizados en este mes.
-              </p>
-            ) : (
-              <div className="tabla-mini">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Paciente</th>
-                      <th>DNI</th>
-                      <th>Tipo</th>
-                      <th>Inicio</th>
-                      <th>Fin</th>
-                      <th>Finalización</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tratamientosFinalizadosLista.map((t, idx) => (
-                      <tr key={`${t.pacienteId}-${t.tratamientoId}-${idx}`}>
-                        <td>
-                          {t.nombre} {t.apellido}
-                        </td>
-                        <td>{t.dni}</td>
-                        <td>{t.tipo}</td>
-                        <td>{formatearFecha(t.fechaInicio)}</td>
-                        <td>{formatearFecha(t.fechaFin)}</td>
-                        <td>
-                          <div>{formatearFinalizacion(t)}</div>
-                          {t.comentarioFinalizacion && (
-                            <div
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#6b7280",
-                                marginTop: "2px",
-                              }}
-                            >
-                              {t.comentarioFinalizacion}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            className="btn-link"
-                            onClick={() =>
-                              navigate(
-                                `/tratamientos/${t.pacienteId}/${t.tratamientoId}`
-                              )
-                            }
-                          >
-                            Ver detalle
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                <span className="treatment-icon"><Activity size={18} /></span>
+                <span>
+                  <strong>{tratamiento.paciente}</strong>
+                  <small>{tratamiento.tipo}</small>
+                </span>
+                <span className="status-pill">Activo</span>
+              </button>
+            ))}
           </div>
         )}
+      </section>
 
-        {selectedWidget === "activos" && (
-          <PacientesActivosResumen usuariosDocs={usuariosDocs} />
-        )}
-
-        {selectedWidget === "drogas" && (
-          <div className="drogas-detalle">
-            <h3>Drogas utilizadas este mes</h3>
-
-            {drogasArray.length === 0 ? (
-              <p>No se registran drogas este mes.</p>
-            ) : (
-              <>
-                <div className="drogas-resumen">
-                  <div>
-                    <span className="label">Total de aplicaciones</span>
-                    <span className="valor">{totalAplicaciones}</span>
-                  </div>
-                  <div>
-                    <span className="label">Drogas diferentes</span>
-                    <span className="valor">{drogasArray.length}</span>
-                  </div>
-                  <div>
-                    <span className="label">Droga más utilizada</span>
-                    <span className="valor">
-                      {drogasOrdenadas[0]?.[0] || "-"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="drogas-lista">
-                  {drogasOrdenadas.map(([nombre, total]) => {
-                    const cantidad = Number(total) || 0;
-                    const porcentaje =
-                      totalAplicaciones > 0
-                        ? ((cantidad / totalAplicaciones) * 100).toFixed(1)
-                        : 0;
-
-                    return (
-                      <div key={nombre} className="droga-item">
-                        <div className="fila-superior">
-                          <span className="droga-nombre">{nombre}</span>
-                          <span className="droga-ui">
-                            {cantidad} aplicaciones · {porcentaje}%
-                          </span>
-                        </div>
-                        <div className="barra-bg">
-                          <div
-                            className="barra-fill"
-                            style={{ width: `${porcentaje}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      <section className="dashboard-status-grid">
+        <article className="status-card">
+          <Pill size={22} />
+          <div><strong>{datos.medicacionesSinConfirmar.length}</strong><span>Medicaciones sin confirmar</span></div>
+        </article>
+        <article className="status-card">
+          <FileWarning size={22} />
+          <div><strong>{datos.estudiosPendientes.length}</strong><span>Estudios pendientes o vencidos</span></div>
+        </article>
+        <article className="status-card">
+          <Clock3 size={22} />
+          <div><strong>{datos.seguimientos.length}</strong><span>Pacientes que necesitan seguimiento</span></div>
+        </article>
+        <article className="status-card action-card">
+          <Plus size={22} />
+          <button onClick={() => navigate("/pacientes")}>Buscar paciente</button>
+        </article>
+      </section>
+    </main>
   );
 };
 
