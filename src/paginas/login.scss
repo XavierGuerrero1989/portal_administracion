@@ -17,10 +17,11 @@
   background-color: transparent;
   box-shadow: none;
   border-radius: 0;
-  padding: 0;
+  padding: 32px;
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 /* NUEVO: imagen del laboratorio */
@@ -115,4 +116,10 @@
 
 .recuperar:hover {
   color: lighten(#ffffff, 10%);
+}
+
+@media (max-width: 520px) {
+  .login-form {
+    padding: 24px 20px;
+  }
 }
